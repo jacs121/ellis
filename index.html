@@ -144,7 +144,7 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
       <div class="or">or join a friend</div>
       <div class="row"><input id="codeIn" maxlength="5" placeholder="5-LTR" autocomplete="off" spellcheck="false"><button id="btnJoin">Join</button></div>
 
-      <label class="check tip" data-tip="Local/same-browser mode only uses tabs in this browser (works completely offline). Untick to connect across phones, laptops, and friends on your Wi-Fi or online.">
+      <label class="check tip" data-tip="Uses same-browser tabs only (works offline). Untick to connect across phones, laptops, and friends on your Wi-Fi or online.">
         <input type="checkbox" id="localMode"> Same-browser offline mode (tabs only)
       </label>
 
@@ -272,10 +272,10 @@ const FALLBACK_WORDS=[
   'windmill','wizard','xylophone','zebra'
 ];
 
-// Public WSS MQTT brokers (work reliably on GitHub Pages HTTPS, file://, LAN Wi-Fi, and across devices without WebRTC NAT issues)
 const BROKERS=[
   'wss://broker.emqx.io:8084/mqtt',
-  'wss://broker.hivemq.com:8884/mqtt'
+  'wss://broker.hivemq.com:8884/mqtt',
+  'wss://test.mosquitto.org:8081'
 ];
 
 // <logic>
@@ -462,7 +462,7 @@ function createMqttClient(urls,clientId,topic,onReady,onMessage,onFail){
     },4000);
 
     ws.onopen=()=>{
-      const vh=[0,4,77,81,84,84,4,2,0,30]; // MQTT 3.1.1, clean session, keepalive 30s
+      const vh=[0,4,77,81,84,84,4,2,0,30];
       const pl=mqttStr(clientId);
       const body=[...vh,...pl];
       ws.send(new Uint8Array([0x10,...mqttRemLen(body.length),...body]));
@@ -484,7 +484,7 @@ function createMqttClient(urls,clientId,topic,onReady,onMessage,onFail){
         const end=pos+val;
         if(end>buf.length)return;
 
-        if(type===2){ // CONNACK
+        if(type===2){
           clearTimeout(connTimeout);
           if(buf[pos+1]===0){
             const subBody=[0,1,...mqttStr(topic),0];
@@ -495,12 +495,12 @@ function createMqttClient(urls,clientId,topic,onReady,onMessage,onFail){
           }else{
             try{ws.close();}catch(e){}
           }
-        }else if(type===9){ // SUBACK
+        }else if(type===9){
           if(!readyFired){
             readyFired=true;
             onReady();
           }
-        }else if(type===3){ // PUBLISH
+        }else if(type===3){
           const tlen=(buf[pos]<<8)|buf[pos+1];
           const pStart=pos+2+tlen;
           const text=new TextDecoder().decode(buf.subarray(pStart,end));
@@ -517,7 +517,6 @@ function createMqttClient(urls,clientId,topic,onReady,onMessage,onFail){
       if(!closed){
         if(!readyFired)connect();
         else{
-          // Reconnect to same broker if dropped mid-game
           idx=Math.max(0,idx-1);
           setTimeout(connect,1000);
         }
@@ -549,7 +548,7 @@ function createMqttClient(urls,clientId,topic,onReady,onMessage,onFail){
 function netHost(code,h){
   const topic='ellis-game/v1/'+code;
   const ch=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('ellis5-'+code):null;
-  const seenPeers=new Map(); // id -> lastSeen timestamp
+  const seenPeers=new Map();
 
   const handlePacket=(d)=>{
     if(!d||d.to!=='host'||!d.from)return;
@@ -574,7 +573,6 @@ function netHost(code,h){
     ()=>h.onError({type:'broker-unavailable'})
   );
 
-  // Detect disconnected clients if they closed browser without sending bye
   const sweep=setInterval(()=>{
     const now=Date.now();
     for(const [id,ts] of seenPeers.entries()){
@@ -645,7 +643,6 @@ function netJoin(code,h){
     if(!mq.publish(pkt)&&!opened)pending.push(msg);
   };
 
-  // Heartbeat so host knows client is still connected
   const hb=setInterval(()=>{
     if(S.welcomed)emit({t:'ping'});
   },10000);
@@ -665,7 +662,6 @@ function netJoin(code,h){
   };
 }
 
-// Same-browser offline mode (tabs only)
 function localHost(code,h){
   const ch=new BroadcastChannel('ellis5-local-'+code);
   ch.onmessage=e=>{
@@ -753,7 +749,6 @@ function joinRoom(){
     onOpen:id=>{
       S.id=id;
       S.net.send({t:'hello',name});
-      // Retry hello once after 2s in case host subscribed slightly after
       setTimeout(()=>{if(!S.welcomed&&S.net)S.net.send({t:'hello',name});},2000);
     },
     onMsg:clientHandle,
@@ -906,7 +901,7 @@ function endRound(){
   const minutes=G.ms/60000,count=G.words.length,points=count/minutes;
   G.scores[G.chosenId]=(G.scores[G.chosenId]||0)+points;
   broadcast({t:'reveal',chosenId:G.chosenId,words:G.words,missed:G.word||'',count,minutes,points,anon:G.anon,
-    names:G.names,aliases:G.aliases,scores:G.scores,last:G.idx>=G.order.length-1,n:G.idx+1,total:G.order.length});
+    names:G.names,aliases:G.aliases,scores:G.scores,last:G.idx>=G.order.length-1,n:g.idx+1,total:G.order.length});
 }
 function nextRound(){
   if(!G||G.phase!=='reveal')return;

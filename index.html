@@ -575,7 +575,7 @@ async function populateDynamicCategoryOptions(){
     const opt=document.createElement('option');
     opt.value=val;
     opt.textContent='Web: '+folder.replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-    sel.insertAfter(opt,topicOpt||null);
+    sel.insertBefore(opt,topicOpt||null);
   }
   if(S.settings&&S.settings.bank)sel.value=S.settings.bank;
 }

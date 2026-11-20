@@ -949,7 +949,7 @@ function renderLobby(notice,busy){
   $('#btnStart').classList.toggle('hidden',!S.isHost);
   $('#btnStart').disabled=S.players.length<2||!!busy;
   $('#waitNote').classList.toggle('hidden',S.isHost);
-  $('#lobbyNote').textContent=notice||(S.isHost&&S.players.length<2?'You need at least 2 players to start.':'');
+  $('#lobbyNote').textContent=notice||(S.isHost&&S.players.length<3?'You need at least 3 players to start.':'');
 }
 
 function startRoundUI(m){

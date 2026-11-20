@@ -60,6 +60,7 @@ input[type=text],input[type=number],input:not([type]),select{
   border-radius:3px 12px 3px 10px;padding:4px 8px;outline:none;min-width:0;
 }
 input[type=number]{width:84px;text-align:right}
+#customTopicIn{width:170px}
 input:focus,select:focus{border-bottom-color:var(--blue);background:rgba(63,106,163,.06)}
 input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 input::placeholder{color:#b3b0a6}
@@ -86,7 +87,7 @@ select{cursor:pointer}
 .set{flex-direction:row;justify-content:space-between;align-items:center;gap:16px;color:var(--ink);font-size:20px;padding:6px 0;border-bottom:1.5px dashed #c8c4b6}
 .set:last-child{border-bottom:none}
 .set > span{border-bottom:2px dotted rgba(47,47,51,.35)}
-.set-right{display:flex;align-items:center;gap:10px}
+.set-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
 
 .code{font-family:'Caveat',cursive;font-size:84px;font-weight:700;letter-spacing:10px;cursor:pointer;line-height:1;margin:4px 0;filter:url(#rough)}
 ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
@@ -181,17 +182,21 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
     </div>
     <div class="card">
       <h3>Game settings</h3>
-      <label class="set tip" data-tip="Choose which category of words the game automatically loads for this room.">
+      <div class="set tip" data-tip="Dynamically loads categories from GitHub Corpora or fetches words for any custom topic from Datamuse, with built-in fallback banks if offline.">
         <span>Word bank</span>
-        <select id="bankSel">
-          <option value="mixed">Mixed (All words)</option>
-          <option value="animals">Animals</option>
-          <option value="food">Food & Drinks</option>
-          <option value="objects">Everyday Objects</option>
-          <option value="nature">Nature & Places</option>
-          <option value="pop">Movies & Pop</option>
-        </select>
-      </label>
+        <div class="set-right">
+          <select id="bankSel">
+            <option value="mixed">Mixed (Fallback)</option>
+            <option value="animals">Animals (Fallback)</option>
+            <option value="food">Food & Drinks (Fallback)</option>
+            <option value="objects">Everyday Objects (Fallback)</option>
+            <option value="nature">Nature & Places (Fallback)</option>
+            <option value="pop">Movies & Pop (Fallback)</option>
+            <option value="topic">Custom Topic (Datamuse)</option>
+          </select>
+          <input id="customTopicIn" class="hidden" maxlength="40" placeholder="e.g. space, sports" autocomplete="off">
+        </div>
+      </div>
       <label class="set tip" data-tip="How long each round lasts. The chosen player tries to get as many words written as they can before the timer runs out.">
         <span>Round length</span>
         <select id="secSel">
@@ -266,17 +271,15 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
 (()=>{
 'use strict';
 
-/* ---------------- configuration & auto word banks ---------------- */
-const CORPORA='https://raw.githubusercontent.com/dariusk/corpora/master/data/';
-const WORD_BANKS={
+/* ---------------- fallback word banks & dynamic web sources ---------------- */
+const CORPORA_API_BASE='https://api.github.com/repos/dariusk/corpora/contents/data';
+const CORPORA_RAW_BASE='https://raw.githubusercontent.com/dariusk/corpora/master/data/';
+const DATAMUSE_WORDS_URL='https://api.datamuse.com/words';
+
+const FALLBACK_WORD_BANKS={
   mixed:{
-    label:'Mixed (All words)',
-    sources:[
-      {url:CORPORA+'objects/objects.json',key:'objects'},
-      {url:CORPORA+'animals/common.json',key:'animals'},
-      {url:CORPORA+'foods/fruits.json',key:'fruits'}
-    ],
-    fallback:[
+    label:'Mixed (Fallback)',
+    words:[
       'apple','anchor','astronaut','avocado','backpack','balloon','banana','lighthouse','bicycle','blanket',
       'boomerang','broccoli','butterfly','cactus','camera','campfire','candle','canyon','carousel','castle',
       'cheetah','chocolate','compass','cookie','crocodile','crown','diamond','dinosaur','dolphin','dragonfly',
@@ -294,13 +297,8 @@ const WORD_BANKS={
     ]
   },
   animals:{
-    label:'Animals',
-    sources:[
-      {url:CORPORA+'animals/common.json',key:'animals'},
-      {url:CORPORA+'animals/birds_north_america.json',key:'birds'},
-      {url:CORPORA+'animals/dinosaurs.json',key:'dinosaurs'}
-    ],
-    fallback:[
+    label:'Animals (Fallback)',
+    words:[
       'albatross','alligator','alpaca','antelope','armadillo','badger','barracuda','bat','beaver','beetle',
       'beluga','bison','bloodhound','bobcat','buffalo','butterfly','camel','capybara','cardinal','caribou',
       'caterpillar','chameleon','cheetah','chimpanzee','chinchilla','chipmunk','cobra','condor','cougar','cow',
@@ -323,13 +321,8 @@ const WORD_BANKS={
     ]
   },
   food:{
-    label:'Food & Drinks',
-    sources:[
-      {url:CORPORA+'foods/fruits.json',key:'fruits'},
-      {url:CORPORA+'foods/vegetables.json',key:'vegetables'},
-      {url:CORPORA+'foods/herbs_spices.json',key:'herbs_and_spices'}
-    ],
-    fallback:[
+    label:'Food & Drinks (Fallback)',
+    words:[
       'almonds','apple','apricot','artichoke','asparagus','avocado','bacon','bagel','baguette','banana',
       'barbecue','biscuit','blackberry','blueberry','bread','broccoli','brownie','burrito','butter','cabbage',
       'cake','cantaloupe','caramel','carrot','cashew','cauliflower','celery','cereal','cheddar','cheeseburger',
@@ -350,12 +343,8 @@ const WORD_BANKS={
     ]
   },
   objects:{
-    label:'Everyday Objects',
-    sources:[
-      {url:CORPORA+'objects/objects.json',key:'objects'},
-      {url:CORPORA+'technology/clothing.json',key:'clothing'}
-    ],
-    fallback:[
+    label:'Everyday Objects (Fallback)',
+    words:[
       'alarm clock','anchor','armchair','backpack','ball','balloon','bandage','barrel','basket','battery',
       'bed','bell','belt','bench','bicycle','binoculars','blanket','blender','book','bookmark','boot',
       'bottle','bowl','bracelet','brick','briefcase','broom','brush','bucket','buckle','bulb','button',
@@ -386,12 +375,8 @@ const WORD_BANKS={
     ]
   },
   nature:{
-    label:'Nature & Places',
-    sources:[
-      {url:CORPORA+'geography/oceans.json',key:'oceans'},
-      {url:CORPORA+'geography/rivers_europe.json',key:'rivers'}
-    ],
-    fallback:[
+    label:'Nature & Places (Fallback)',
+    words:[
       'archipelago','atoll','avalanche','bay','beach','blizzard','boulder','brook','butte','canal','canyon',
       'cape','cave','cavern','cliff','cloud','coast','comet','constellation','coral reef','crater','creek',
       'current','dawn','delta','desert','dew','dune','dusk','earthquake','eclipse','estuary','fjord','flood',
@@ -406,12 +391,8 @@ const WORD_BANKS={
     ]
   },
   pop:{
-    label:'Movies & Pop',
-    sources:[
-      {url:CORPORA+'games/pokemon.json',key:'pokemon'},
-      {url:CORPORA+'mythology/monsters.json',key:'monsters'}
-    ],
-    fallback:[
+    label:'Movies & Pop (Fallback)',
+    words:[
       'alien','amulet','archer','arena','armor','asteroid','atlantis','avatar','wizard','dragon','phoenix',
       'unicorn','mermaid','vampire','werewolf','zombie','ghost','goblin','ogre','troll','elf','dwarf','knight',
       'samurai','ninja','pirate','cowboy','detective','spy','villain','hero','sidekick','time travel','portal',
@@ -426,7 +407,6 @@ const WORD_BANKS={
 };
 
 const CONFIG={
-  relatedUrl:'https://api.datamuse.com/words',
   timeoutMs:6000
 };
 
@@ -458,6 +438,17 @@ function cleanBank(lists){
     }
   }
   return out;
+}
+function extractStringsFromJson(val,depth=0){
+  if(depth>3||!val)return[];
+  if(Array.isArray(val)){
+    if(val.length&&typeof val[0]==='string')return val;
+    return val.flatMap(item=>extractStringsFromJson(item,depth+1));
+  }
+  if(typeof val==='object'){
+    return Object.values(val).flatMap(v=>extractStringsFromJson(v,depth+1));
+  }
+  return[];
 }
 function violates(text,phrase){
   const n=norm(text); if(!n)return false;
@@ -522,7 +513,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const show=id=>{document.querySelectorAll('.screen').forEach(e=>e.classList.add('hidden'));$('#'+id).classList.remove('hidden');window.scrollTo(0,0);};
 const fmtClock=ms=>{const s=Math.ceil(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
-const defaults=()=>({bank:'mixed',seconds:90,rounds:3,extra:0,maxSkips:3,limitSkips:true,skipCost:0,max:8,anon:true});
+const defaults=()=>({bank:'mixed',customTopic:'',seconds:90,rounds:3,extra:0,maxSkips:3,limitSkips:true,skipCost:0,max:8,anon:true});
 const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 
 const SANDBOXED=(()=>{try{void window.localStorage;return false;}catch(e){return true;}})();
@@ -531,7 +522,7 @@ const LOCAL_FAIL_MSG='No reply from host in same-browser mode. Make sure both ta
 const NET_FAIL_MSG='No reply from host. Check the 5-letter code and make sure the host has the room open.';
 const log=(...a)=>console.info('[Ellis]',...a);
 
-const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null,seenMids:new Set()};
+const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null,seenMids:new Set(),dynamicFolders:[]};
 let G=null;
 
 function markSeen(mid){
@@ -545,7 +536,7 @@ function markSeen(mid){
   return false;
 }
 
-/* ---------------- automatic category word banks ---------------- */
+/* ---------------- dynamic website categories + fallback word banks ---------------- */
 async function fetchJson(url,ms){
   const ac=new AbortController();const t=setTimeout(()=>ac.abort(),ms);
   try{
@@ -554,29 +545,104 @@ async function fetchJson(url,ms){
     return await r.json();
   }finally{clearTimeout(t);}
 }
-const bankPromises=new Map();
-function getBank(bankKey){
-  const key=WORD_BANKS[bankKey]?bankKey:'mixed';
-  if(!bankPromises.has(key)){
-    const spec=WORD_BANKS[key];
-    const p=Promise.allSettled(
-      (spec.sources||[]).map(s=>fetchJson(s.url,CONFIG.timeoutMs).then(j=>j&&j[s.key]))
-    ).then(rs=>{
-      const remote=rs.filter(r=>r.status==='fulfilled').map(r=>r.value);
-      const bank=cleanBank([spec.fallback,...remote]);
-      return bank.length>=20?bank:cleanBank([spec.fallback]);
-    }).catch(()=>cleanBank([spec.fallback]));
-    bankPromises.set(key,p);
+
+let foldersPromise=null;
+function discoverCorporaFolders(){
+  if(!foldersPromise){
+    foldersPromise=fetchJson(CORPORA_API_BASE,CONFIG.timeoutMs)
+      .then(items=>{
+        if(!Array.isArray(items))return[];
+        return items
+          .filter(it=>it&&it.type==='dir'&&typeof it.name==='string'&&/^[a-z0-9_-]+$/i.test(it.name))
+          .map(it=>it.name);
+      })
+      .catch(()=>[]);
   }
-  return bankPromises.get(key);
+  return foldersPromise;
 }
+
+async function populateDynamicCategoryOptions(){
+  const sel=$('#bankSel');
+  if(!sel||sel.dataset.foldersLoaded)return;
+  sel.dataset.foldersLoaded='1';
+  const folders=await discoverCorporaFolders();
+  if(!folders.length)return;
+  S.dynamicFolders=folders;
+  const topicOpt=sel.querySelector('option[value="topic"]');
+  for(const folder of folders){
+    const val='corpora:'+folder;
+    if(sel.querySelector('option[value="'+val+'"]'))continue;
+    const opt=document.createElement('option');
+    opt.value=val;
+    opt.textContent='Web: '+folder.replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    sel.insertBefore(opt,topicOpt||null);
+  }
+  if(S.settings&&S.settings.bank)sel.value=S.settings.bank;
+}
+
+const bankCache=new Map();
+function getFallbackWords(bankKey){
+  if(FALLBACK_WORD_BANKS[bankKey])return cleanBank([FALLBACK_WORD_BANKS[bankKey].words]);
+  return cleanBank([FALLBACK_WORD_BANKS.mixed.words]);
+}
+
+async function fetchTopicWords(topicStr){
+  const topics=norm(topicStr).split(' ').filter(Boolean).slice(0,5).join(',');
+  if(!topics)return[];
+  const url=DATAMUSE_WORDS_URL+'?topics='+encodeURIComponent(topics)+'&md=p&max=250';
+  const data=await fetchJson(url,CONFIG.timeoutMs);
+  if(!Array.isArray(data))return[];
+  const nouns=data.filter(d=>d&&Array.isArray(d.tags)&&d.tags.includes('n')).map(d=>d.word);
+  const pool=nouns.length>=25?nouns:data.map(d=>d&&d.word);
+  return cleanBank([pool]);
+}
+
+async function fetchCorporaFolderWords(folder){
+  const entries=await fetchJson(CORPORA_API_BASE+'/'+encodeURIComponent(folder),CONFIG.timeoutMs);
+  if(!Array.isArray(entries))return[];
+  const jsonFiles=entries
+    .filter(f=>f&&f.type==='file'&&typeof f.name==='string'&&f.name.endsWith('.json'))
+    .slice(0,4);
+  if(!jsonFiles.length)return[];
+  const rawArrays=await Promise.all(
+    jsonFiles.map(f=>
+      fetchJson(CORPORA_RAW_BASE+encodeURIComponent(folder)+'/'+encodeURIComponent(f.name),CONFIG.timeoutMs)
+        .then(j=>extractStringsFromJson(j))
+        .catch(()=>[])
+    )
+  );
+  return cleanBank(rawArrays);
+}
+
+function getBank(bankKey,customTopic){
+  const key=bankKey||'mixed';
+  const cacheKey=key==='topic'?('topic:'+norm(customTopic||'')):key;
+  if(!bankCache.has(cacheKey)){
+    const p=(async()=>{
+      if(key==='topic'){
+        const words=await fetchTopicWords(customTopic);
+        return words.length>=15?words:getFallbackWords('mixed');
+      }
+      if(key.startsWith('corpora:')){
+        const folder=key.slice('corpora:'.length);
+        const words=await fetchCorporaFolderWords(folder);
+        return words.length>=15?words:getFallbackWords('mixed');
+      }
+      const fb=getFallbackWords(key);
+      return fb.length?fb:getFallbackWords('mixed');
+    })().catch(()=>getFallbackWords(key.startsWith('corpora:')?'mixed':key));
+    bankCache.set(cacheKey,p);
+  }
+  return bankCache.get(cacheKey);
+}
+
 async function prepare(g){
   const word=pickWord(g.bank,g.used);
   let blocked=[];
   const want=S.settings.extra;
   if(want>0){
     try{
-      const arr=await fetchJson(CONFIG.relatedUrl+'?ml='+encodeURIComponent(word)+'&max=60',CONFIG.timeoutMs);
+      const arr=await fetchJson(DATAMUSE_WORDS_URL+'?ml='+encodeURIComponent(word)+'&max=60',CONFIG.timeoutMs);
       blocked=pickRelated(Array.isArray(arr)?arr:[],word,want);
     }catch(e){g.relatedFailed=true;}
   }
@@ -908,7 +974,12 @@ function createRoom(){
   G={phase:'lobby',order:[],queue:[],used:new Set(),names:{},scores:{},idx:0};
   setErr('Creating room '+code+'...');
   const h={
-    onReady:()=>{setErr('');broadcastLobby();getBank(S.settings.bank).catch(()=>{});},
+    onReady:()=>{
+      setErr('');
+      broadcastLobby();
+      populateDynamicCategoryOptions().then(()=>broadcastLobby()).catch(()=>{});
+      getBank(S.settings.bank,S.settings.customTopic).catch(()=>{});
+    },
     onMsg:hostHandle,
     onLeave:hostLeave,
     onError:e=>leaveToMenu('Could not connect to relay ('+((e&&e.type)||'network error')+'). Check your internet or tick Same-browser offline mode.')
@@ -1013,8 +1084,10 @@ function hostLeave(id){
 function applySettings(){
   if(!S.isHost||!G||G.phase!=='lobby')return;
   const s=S.settings;
-  const prevBank=s.bank;
-  s.bank=WORD_BANKS[$('#bankSel').value]?$('#bankSel').value:'mixed';
+  const prevBank=s.bank, prevTopic=s.customTopic;
+  const selVal=$('#bankSel').value;
+  s.bank=(FALLBACK_WORD_BANKS[selVal]||selVal==='topic'||selVal.startsWith('corpora:'))?selVal:'mixed';
+  s.customTopic=$('#customTopicIn').value.trim().slice(0,40);
   s.seconds=+$('#secSel').value||90;
   s.rounds=clamp(parseInt($('#roundsIn').value,10)||1,1,20);
   s.extra=clamp(parseInt($('#extraSel').value,10)||0,0,6);
@@ -1023,22 +1096,25 @@ function applySettings(){
   s.skipCost=Math.max(0,parseFloat($('#skipCostIn').value)||0);
   s.max=clamp(parseInt($('#maxIn').value,10)||8,Math.max(3,S.players.length),16);
   s.anon=$('#anonChk').checked;
-  if(s.bank!==prevBank)getBank(s.bank).catch(()=>{});
+  if(s.bank!==prevBank||s.customTopic!==prevTopic)getBank(s.bank,s.customTopic).catch(()=>{});
   broadcastLobby();
 }
 
 async function startGame(){
   if(!G||G.phase!=='lobby'||S.players.length<3)return;
   G.phase='starting';
-  const bankLabel=(WORD_BANKS[S.settings.bank]||WORD_BANKS.mixed).label;
-  broadcastLobby('Loading '+bankLabel+' word bank...');
+  const s=S.settings;
+  const bankLabel=s.bank==='topic'
+    ?('topic "'+(s.customTopic||'mixed')+'"')
+    :(s.bank.startsWith('corpora:')?s.bank.slice('corpora:'.length):((FALLBACK_WORD_BANKS[s.bank]||FALLBACK_WORD_BANKS.mixed).label));
+  broadcastLobby('Fetching '+bankLabel+' words...');
   const g=G;
   try{
-    g.bank=await getBank(S.settings.bank);
+    g.bank=await getBank(s.bank,s.customTopic);
     g.used=new Set();g.queue=[];g.relatedFailed=false;
     await ensureQueue(1);
   }catch(e){
-    if(G===g){g.phase='lobby';broadcastLobby('Could not load the word bank. Press Start again.');}
+    if(G===g){g.phase='lobby';broadcastLobby('Could not load words. Press Start again.');}
     return;
   }
   if(G!==g||g.phase!=='starting')return;
@@ -1162,18 +1238,29 @@ function renderLobby(notice,busy){
   $('#pCount').textContent='('+S.players.length+'/'+s.max+')';
   $('#plist').innerHTML=S.players.map(p=>
     '<li><span>'+esc(p.name)+(p.id==='host'?'<span class="tagbit">host</span>':'')+(p.id===S.id?'<span class="tagbit">you</span>':'')+'</span></li>').join('');
-  $('#bankSel').value=s.bank||'mixed';
+  const sel=$('#bankSel');
+  if(s.bank&&s.bank.startsWith('corpora:')&&!sel.querySelector('option[value="'+s.bank+'"]')){
+    const opt=document.createElement('option');
+    opt.value=s.bank;
+    opt.textContent='Web: '+s.bank.slice('corpora:'.length);
+    sel.insertBefore(opt,sel.querySelector('option[value="topic"]')||null);
+  }
+  sel.value=s.bank||'mixed';
+  const isTopic=(s.bank==='topic');
+  $('#customTopicIn').classList.toggle('hidden',!isTopic);
+  if(document.activeElement!==$('#customTopicIn')){
+    $('#customTopicIn').value=s.customTopic||'';
+  }
   $('#secSel').value=String(s.seconds);
   $('#roundsIn').value=s.rounds;
   $('#extraSel').value=String(s.extra);
   $('#limitSkipsChk').checked=s.limitSkips!==false;
   $('#maxSkipsIn').value=s.maxSkips!=null?s.maxSkips:3;
-  $('#maxSkipsIn').disabled=!S.isHost||!!busy||!$('#limitSkipsChk').checked;
   $('#skipCostIn').value=s.skipCost!=null?s.skipCost:0;
   $('#maxIn').min=Math.max(3,S.players.length);
   $('#maxIn').value=s.max;
   $('#anonChk').checked=!!s.anon;
-  ['bankSel','secSel','roundsIn','extraSel','limitSkipsChk','skipCostIn','maxIn','anonChk'].forEach(id=>{$('#'+id).disabled=!S.isHost||!!busy;});
+  ['bankSel','customTopicIn','secSel','roundsIn','extraSel','limitSkipsChk','skipCostIn','maxIn','anonChk'].forEach(id=>{$('#'+id).disabled=!S.isHost||!!busy;});
   $('#maxSkipsIn').disabled=!S.isHost||!!busy||!s.limitSkips;
   $('#btnStart').classList.toggle('hidden',!S.isHost);
   $('#btnStart').disabled=S.players.length<3||!!busy;
@@ -1269,6 +1356,11 @@ function renderFinal(m){
 $('#codeIn').addEventListener('input',e=>{
   e.target.value=e.target.value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,5);
 });
+$('#bankSel').addEventListener('change',()=>{
+  $('#customTopicIn').classList.toggle('hidden',$('#bankSel').value!=='topic');
+  applySettings();
+});
+$('#customTopicIn').addEventListener('change',applySettings);
 $('#limitSkipsChk').addEventListener('change',e=>{
   $('#maxSkipsIn').disabled=!e.target.checked||!S.isHost;
   applySettings();
@@ -1283,7 +1375,7 @@ $('#btnLeave2').onclick=()=>leaveToMenu();
 $('#btnStart').onclick=startGame;
 $('#btnNext').onclick=nextRound;
 $('#btnAgain').onclick=backToLobby;
-['bankSel','secSel','roundsIn','extraSel','maxSkipsIn','skipCostIn','maxIn','anonChk'].forEach(id=>$('#'+id).addEventListener('change',applySettings));
+['secSel','roundsIn','extraSel','maxSkipsIn','skipCostIn','maxIn','anonChk'].forEach(id=>$('#'+id).addEventListener('change',applySettings));
 $('#roomCode').onclick=()=>{
   try{navigator.clipboard.writeText(S.code);$('#copyNote').textContent='Copied.';setTimeout(()=>{$('#copyNote').textContent='Share this 5-letter code. Click it to copy.';},1500);}catch(e){}
 };

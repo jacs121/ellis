@@ -181,6 +181,17 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
     </div>
     <div class="card">
       <h3>Game settings</h3>
+      <label class="set tip" data-tip="Choose which category of words the game automatically loads for this room.">
+        <span>Word bank</span>
+        <select id="bankSel">
+          <option value="mixed">Mixed (All words)</option>
+          <option value="animals">Animals</option>
+          <option value="food">Food & Drinks</option>
+          <option value="objects">Everyday Objects</option>
+          <option value="nature">Nature & Places</option>
+          <option value="pop">Movies & Pop</option>
+        </select>
+      </label>
       <label class="set tip" data-tip="How long each round lasts. The chosen player tries to get as many words written as they can before the timer runs out.">
         <span>Round length</span>
         <select id="secSel">
@@ -255,36 +266,169 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
 (()=>{
 'use strict';
 
-/* ---------------- configuration ---------------- */
+/* ---------------- configuration & auto word banks ---------------- */
 const CORPORA='https://raw.githubusercontent.com/dariusk/corpora/master/data/';
+const WORD_BANKS={
+  mixed:{
+    label:'Mixed (All words)',
+    sources:[
+      {url:CORPORA+'objects/objects.json',key:'objects'},
+      {url:CORPORA+'animals/common.json',key:'animals'},
+      {url:CORPORA+'foods/fruits.json',key:'fruits'}
+    ],
+    fallback:[
+      'apple','anchor','astronaut','avocado','backpack','balloon','banana','lighthouse','bicycle','blanket',
+      'boomerang','broccoli','butterfly','cactus','camera','campfire','candle','canyon','carousel','castle',
+      'cheetah','chocolate','compass','cookie','crocodile','crown','diamond','dinosaur','dolphin','dragonfly',
+      'eclipse','elephant','elevator','feather','fireworks','flamingo','flashlight','fountain','giraffe','glacier',
+      'goldfish','guitar','hammock','hedgehog','helicopter','hourglass','iceberg','iguana','island','jellyfish',
+      'kangaroo','keyboard','kite','koala','labyrinth','lantern','lavender','lemonade','leopard','library',
+      'lightning','lobster','magnet','mango','marshmallow','meadow','microscope','milkshake','moonlight','mountain',
+      'mushroom','narwhal','necklace','octopus','origami','ostrich','paintbrush','pancake','parachute','peacock',
+      'pelican','penguin','pineapple','pirate','platypus','polar bear','popcorn','porcupine','pretzel','pyramid',
+      'raccoon','rainbow','rattlesnake','refrigerator','rhinoceros','rollercoaster','sailboat','sandcastle','satellite',
+      'scarecrow','scorpion','seahorse','shadow','skeleton','skyscraper','snowflake','spaceship','spaghetti','sphinx',
+      'squirrel','starfish','stethoscope','strawberry','submarine','sunflower','surfboard','telescope','thunderstorm',
+      'tornado','trampoline','treasure','treehouse','trombone','tulip','umbrella','unicorn','vacuum','vampire',
+      'volcano','waffle','waterfall','watermelon','wheelbarrow','windmill','wizard','xylophone','zebra'
+    ]
+  },
+  animals:{
+    label:'Animals',
+    sources:[
+      {url:CORPORA+'animals/common.json',key:'animals'},
+      {url:CORPORA+'animals/birds_north_america.json',key:'birds'},
+      {url:CORPORA+'animals/dinosaurs.json',key:'dinosaurs'}
+    ],
+    fallback:[
+      'albatross','alligator','alpaca','antelope','armadillo','badger','barracuda','bat','beaver','beetle',
+      'beluga','bison','bloodhound','bobcat','buffalo','butterfly','camel','capybara','cardinal','caribou',
+      'caterpillar','chameleon','cheetah','chimpanzee','chinchilla','chipmunk','cobra','condor','cougar','cow',
+      'coyote','crab','crane','crocodile','crow','dalmatian','deer','dingo','dolphin','donkey','dragonfly',
+      'duck','eagle','echidna','eel','elephant','elk','emu','falcon','ferret','flamingo','flea','fox','frog',
+      'gazelle','gecko','gerbil','gibbon','giraffe','goat','goldfish','goose','gorilla','grasshopper','grizzly',
+      'gull','hamster','hawk','hedgehog','heron','hippopotamus','hornet','horse','hummingbird','hyena','iguana',
+      'impala','jackal','jaguar','jay','jellyfish','kangaroo','kingfisher','koala','komodo dragon','ladybug',
+      'lemur','leopard','lion','lizard','llama','lobster','locust','lynx','macaw','mallard','manatee','mantis',
+      'marmot','meerkat','mink','mole','mongoose','monkey','moose','mosquito','moth','mouse','mule','narwhal',
+      'newt','nightingale','ocelot','octopus','opossum','orangutan','oryx','ostrich','otter','owl','ox','oyster',
+      'panda','panther','parrot','partridge','peacock','pelican','penguin','perch','pheasant','pig','pigeon',
+      'platypus','polar bear','porcupine','porpoise','prairie dog','prawn','puffin','puma','python','quail',
+      'rabbit','raccoon','ram','rat','rattlesnake','raven','reindeer','rhinoceros','roadrunner','robin','rooster',
+      'salamander','salmon','sandpiper','sardine','scorpion','sea lion','seahorse','seal','shark','sheep','shrew',
+      'shrimp','skunk','sloth','slug','snail','snake','sparrow','spider','squid','squirrel','starfish','stingray',
+      'stork','swallow','swan','tapir','tarantula','termite','tiger','toad','toucan','trout','turkey','turtle',
+      'viper','vulture','walrus','warbler','wasp','weasel','whale','whippet','wildcat','wolf','wolverine','wombat',
+      'woodpecker','worm','wren','yak','zebra'
+    ]
+  },
+  food:{
+    label:'Food & Drinks',
+    sources:[
+      {url:CORPORA+'foods/fruits.json',key:'fruits'},
+      {url:CORPORA+'foods/vegetables.json',key:'vegetables'},
+      {url:CORPORA+'foods/herbs_spices.json',key:'herbs_and_spices'}
+    ],
+    fallback:[
+      'almonds','apple','apricot','artichoke','asparagus','avocado','bacon','bagel','baguette','banana',
+      'barbecue','biscuit','blackberry','blueberry','bread','broccoli','brownie','burrito','butter','cabbage',
+      'cake','cantaloupe','caramel','carrot','cashew','cauliflower','celery','cereal','cheddar','cheeseburger',
+      'cheesecake','cherry','chestnut','chicken','chili','chocolate','churro','cider','cinnamon','clam','coconut',
+      'coffee','cookie','corn','crab','cracker','cranberry','croissant','cucumber','cupcake','curry','custard',
+      'donut','dumpling','eggplant','espresso','falafel','fig','fondue','garlic','gelato','ginger','grape',
+      'grapefruit','guacamole','ham','hazelnut','honey','hummus','ice cream','jam','kebab','ketchup','kiwi',
+      'lasagna','lemon','lemonade','lentil','lettuce','lime','lobster','macaroni','mango','maple syrup',
+      'marshmallow','meatball','melon','milkshake','mint','muffin','mushroom','mustard','nacho','noodle','oatmeal',
+      'olive','omelette','onion','orange','oregano','oyster','pancake','papaya','pasta','pastry','peach','peanut',
+      'pear','peas','pecan','pepper','pepperoni','pickle','pie','pineapple','pistachio','pizza','plum','polenta',
+      'pomegranate','popcorn','potato','pretzel','praline','pudding','pumpkin','quesadilla','radish','raisin',
+      'ramen','raspberry','ravioli','rice','risotto','rosemary','saffron','salad','salsa','sandwich','sardine',
+      'sausage','scone','sesame','sherbet','shrimp','smoothie','sorbet','soup','spaghetti','spinach','steak',
+      'strawberry','sundae','sushi','taco','tamale','tangerine','tapioca','tea','thyme','tofu','tomato',
+      'tortilla','tuna','turkey','turnip','vanilla','venison','waffle','walnut','wasabi','watermelon','yogurt',
+      'zucchini'
+    ]
+  },
+  objects:{
+    label:'Everyday Objects',
+    sources:[
+      {url:CORPORA+'objects/objects.json',key:'objects'},
+      {url:CORPORA+'technology/clothing.json',key:'clothing'}
+    ],
+    fallback:[
+      'alarm clock','anchor','armchair','backpack','ball','balloon','bandage','barrel','basket','battery',
+      'bed','bell','belt','bench','bicycle','binoculars','blanket','blender','book','bookmark','boot',
+      'bottle','bowl','bracelet','brick','briefcase','broom','brush','bucket','buckle','bulb','button',
+      'cabinet','calculator','calendar','camera','candle','canister','canvas','cap','card','carpet','cart',
+      'chain','chair','chalk','charger','clock','coat','coin','comb','compass','computer','container','couch',
+      'cradle','crate','crayon','cup','curtain','cushion','dagger','desk','dice','dish','doorknob','drawer',
+      'drill','drum','envelope','eraser','fan','faucet','feather','fence','file','filter','flag','flashlight',
+      'flask','flute','folder','fork','frame','funnel','furniture','gavel','glasses','globe','glove','glue',
+      'goggles','guitar','hammer','hammock','hanger','harp','hat','headphones','helmet','hook','hose','hourglass',
+      'iron','jacket','jar','jersey','jewelry','jug','jigsaw','kettle','key','keyboard','kite','knife','knob',
+      'ladder','ladle','lamp','lantern','laptop','latch','leash','lens','lever','lighter','lock','locket',
+      'luggage','magnet','magnifying glass','map','marker','mat','match','mattress','medal','megaphone','mirror',
+      'mitten','mop','mouse','mug','nail','napkin','necklace','needle','net','notebook','oar','padlock','pail',
+      'paintbrush','pajamas','pan','paperclip','parachute','parasol','passport','pen','pencil','pendulum',
+      'perfume','phone','photograph','piano','picture','pillow','pin','pipe','pitcher','plaque','plate','pliers',
+      'plug','plunger','pocket','pot','pouch','projector','pulley','purse','puzzle','quilt','racket','radio',
+      'raft','razor','remote','ribbon','ring','robe','rocket','rope','ruler','saddle','safe','sail','sandal',
+      'saw','scale','scarf','scissors','screen','screw','screwdriver','scythe','seal','seat','shampoo','shelf',
+      'shield','shirt','shoe','shovel','shower','sign','sink','skate','skillet','skirt','sled','slipper',
+      'soap','sock','sofa','solar panel','spanner','spatula','speaker','sponge','spoon','spring','stamp',
+      'stapler','statue','stethoscope','sticker','stool','stopwatch','stove','strap','straw','string','suitcase',
+      'sunglasses','sweater','sword','syringe','table','tablet','tag','tape','teapot','telescope','tent',
+      'thermostat','thimble','thread','ticket','tie','tile','timer','tissue','toaster','tongs','toothbrush',
+      'toothpaste','torch','towel','toy','tractor','tray','trolley','trophy','trumpet','trunk','tub','tube',
+      'tuba','umbrella','urn','vacuum','vase','vest','violin','visor','wallet','wand','wardrobe','watch',
+      'watering can','wheel','wheelbarrow','whistle','wig','window','windshield','wineglass','wire','wrench',
+      'xylophone','yarn','yo yo','zipper'
+    ]
+  },
+  nature:{
+    label:'Nature & Places',
+    sources:[
+      {url:CORPORA+'geography/oceans.json',key:'oceans'},
+      {url:CORPORA+'geography/rivers_europe.json',key:'rivers'}
+    ],
+    fallback:[
+      'archipelago','atoll','avalanche','bay','beach','blizzard','boulder','brook','butte','canal','canyon',
+      'cape','cave','cavern','cliff','cloud','coast','comet','constellation','coral reef','crater','creek',
+      'current','dawn','delta','desert','dew','dune','dusk','earthquake','eclipse','estuary','fjord','flood',
+      'fog','forest','frost','geyser','glacier','gorge','grassland','gulf','harbor','hill','horizon','iceberg',
+      'island','isthmus','jungle','lagoon','lake','landslide','lava','lightning','marsh','meadow','mesa',
+      'meteor','mist','monsoon','moon','moor','mountain','mudflat','nebula','oasis','ocean','peninsula','plain',
+      'plateau','pond','prairie','precipice','rain','rainbow','rainforest','rapids','reef','ridge','river',
+      'sandbar','savanna','sea','seashore','shoal','shore','sinkhole','sky','snow','snowstorm','sound',
+      'spring','star','steppe','storm','strait','stream','sun','sunrise','sunset','swamp','swell','tide',
+      'tundra','twilight','typhoon','valley','volcano','waterfall','watershed','wave','wetland','whirlpool',
+      'wilderness','wind','woods'
+    ]
+  },
+  pop:{
+    label:'Movies & Pop',
+    sources:[
+      {url:CORPORA+'games/pokemon.json',key:'pokemon'},
+      {url:CORPORA+'mythology/monsters.json',key:'monsters'}
+    ],
+    fallback:[
+      'alien','amulet','archer','arena','armor','asteroid','atlantis','avatar','wizard','dragon','phoenix',
+      'unicorn','mermaid','vampire','werewolf','zombie','ghost','goblin','ogre','troll','elf','dwarf','knight',
+      'samurai','ninja','pirate','cowboy','detective','spy','villain','hero','sidekick','time travel','portal',
+      'spaceship','lightsaber','wand','broomstick','potion','spell','crown','throne','castle','dungeon',
+      'treasure','map','compass','riddle','prophecy','curse','shield','sword','bow','arrow','cloak','mask',
+      'robot','cyborg','android','clone','hologram','laser','teleporter','dinosaur','kaiju','kraken','gargoyle',
+      'sphinx','minotaur','centaur','griffin','basilisk','hydra','yeti','bigfoot','loch ness','haunted house',
+      'carnival','circus','stage','spotlight','script','director','camera','soundtrack','sequel','plot twist',
+      'arcade','highscore','boss fight','quest','guild','inventory','respawn','cutscene','trophy','podium'
+    ]
+  }
+};
+
 const CONFIG={
-  wordSources:[
-    {url:CORPORA+'objects/objects.json',key:'objects'},
-    {url:CORPORA+'animals/common.json',key:'animals'},
-    {url:CORPORA+'foods/fruits.json',key:'fruits'}
-  ],
   relatedUrl:'https://api.datamuse.com/words',
   timeoutMs:6000
 };
-
-const FALLBACK_WORDS=[
-  'apple','anchor','astronaut','avocado','backpack','balloon','banana','lighthouse','bicycle','blanket',
-  'boomerang','broccoli','butterfly','cactus','camera','campfire','candle','canyon','carousel','castle',
-  'caterpillar','cheeseburger','chameleon','chandelier','cheetah','chocolate','compass','cookie','crocodile','crown',
-  'diamond','dinosaur','dolphin','dragonfly','drumstick','eclipse','elephant','elevator','emerald','envelope',
-  'escalator','feather','fireworks','flamingo','flashlight','fountain','giraffe','glacier','goldfish','guitar',
-  'hammock','hedgehog','helicopter','hibiscus','honeycomb','hourglass','iceberg','iguana','island','jellyfish',
-  'kangaroo','keyboard','kite','koala','labyrinth','lantern','lavender','lemonade','leopard','library',
-  'lightning','lobster','magnet','magnifying glass','mango','marshmallow','meadow','microscope','milkshake','moonlight',
-  'mosquito','mountain','mushroom','narwhal','necklace','octopus','origami','ostrich','paintbrush','pancake',
-  'parachute','peacock','pelican','pendulum','penguin','periscope','pineapple','pirate','platypus','polar bear',
-  'pomegranate','popcorn','porcupine','pretzel','pyramid','quicksand','raccoon','rainbow','rattlesnake','refrigerator',
-  'rhinoceros','rollercoaster','sailboat','sandcastle','satellite','scarecrow','scorpion','seahorse','shadow','skeleton',
-  'skyscraper','snowflake','spaceship','spaghetti','sphinx','squirrel','starfish','stethoscope','strawberry','submarine',
-  'sunflower','surfboard','telescope','thunderstorm','tornado','trampoline','treasure','treehouse','trombone','tulip',
-  'umbrella','unicorn','vacuum','vampire','volcano','waffle','waterfall','watermelon','wheelbarrow','whirlpool',
-  'windmill','wizard','xylophone','zebra'
-];
 
 const BROKERS=[
   'wss://broker.emqx.io:8084/mqtt',
@@ -373,12 +517,12 @@ function buildOrder(ids,rounds){
 // </logic>
 
 const $=s=>document.querySelector(s);
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&','<':'<','>':'>','"':'"',"'":'"'}[c]));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const show=id=>{document.querySelectorAll('.screen').forEach(e=>e.classList.add('hidden'));$('#'+id).classList.remove('hidden');window.scrollTo(0,0);};
 const fmtClock=ms=>{const s=Math.ceil(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
-const defaults=()=>({seconds:90,rounds:3,extra:0,maxSkips:3,limitSkips:true,skipCost:0,max:8,anon:true});
+const defaults=()=>({bank:'mixed',seconds:90,rounds:3,extra:0,maxSkips:3,limitSkips:true,skipCost:0,max:8,anon:true});
 const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 
 const SANDBOXED=(()=>{try{void window.localStorage;return false;}catch(e){return true;}})();
@@ -401,7 +545,7 @@ function markSeen(mid){
   return false;
 }
 
-/* ---------------- word bank and related words ---------------- */
+/* ---------------- automatic category word banks ---------------- */
 async function fetchJson(url,ms){
   const ac=new AbortController();const t=setTimeout(()=>ac.abort(),ms);
   try{
@@ -410,17 +554,21 @@ async function fetchJson(url,ms){
     return await r.json();
   }finally{clearTimeout(t);}
 }
-let bankPromise=null;
-function getBank(){
-  if(!bankPromise){
-    bankPromise=Promise.allSettled(CONFIG.wordSources.map(s=>fetchJson(s.url,CONFIG.timeoutMs).then(j=>j&&j[s.key])))
-      .then(rs=>{
-        const bank=cleanBank(rs.filter(r=>r.status==='fulfilled').map(r=>r.value));
-        return bank.length>=50?bank:cleanBank([FALLBACK_WORDS]);
-      })
-      .catch(()=>cleanBank([FALLBACK_WORDS]));
+const bankPromises=new Map();
+function getBank(bankKey){
+  const key=WORD_BANKS[bankKey]?bankKey:'mixed';
+  if(!bankPromises.has(key)){
+    const spec=WORD_BANKS[key];
+    const p=Promise.allSettled(
+      (spec.sources||[]).map(s=>fetchJson(s.url,CONFIG.timeoutMs).then(j=>j&&j[s.key]))
+    ).then(rs=>{
+      const remote=rs.filter(r=>r.status==='fulfilled').map(r=>r.value);
+      const bank=cleanBank([spec.fallback,...remote]);
+      return bank.length>=20?bank:cleanBank([spec.fallback]);
+    }).catch(()=>cleanBank([spec.fallback]));
+    bankPromises.set(key,p);
   }
-  return bankPromise;
+  return bankPromises.get(key);
 }
 async function prepare(g){
   const word=pickWord(g.bank,g.used);
@@ -760,7 +908,7 @@ function createRoom(){
   G={phase:'lobby',order:[],queue:[],used:new Set(),names:{},scores:{},idx:0};
   setErr('Creating room '+code+'...');
   const h={
-    onReady:()=>{setErr('');broadcastLobby();getBank().catch(()=>{});},
+    onReady:()=>{setErr('');broadcastLobby();getBank(S.settings.bank).catch(()=>{});},
     onMsg:hostHandle,
     onLeave:hostLeave,
     onError:e=>leaveToMenu('Could not connect to relay ('+((e&&e.type)||'network error')+'). Check your internet or tick Same-browser offline mode.')
@@ -856,7 +1004,7 @@ function hostLeave(id){
   G.order=G.order.filter((x,j)=>!(x===id&&j>G.idx));
   if(S.players.length<3){
     clearTimeout(G.timer);G.phase='lobby';
-    broadcastLobby('Not enough players left, so the game went back to the lobby.');
+    broadcastLobby('Not enough players left (at least 3 required), so the game went back to the lobby.');
     return;
   }
   if(G.phase==='round'&&id===G.chosenId)endRound();
@@ -865,6 +1013,8 @@ function hostLeave(id){
 function applySettings(){
   if(!S.isHost||!G||G.phase!=='lobby')return;
   const s=S.settings;
+  const prevBank=s.bank;
+  s.bank=WORD_BANKS[$('#bankSel').value]?$('#bankSel').value:'mixed';
   s.seconds=+$('#secSel').value||90;
   s.rounds=clamp(parseInt($('#roundsIn').value,10)||1,1,20);
   s.extra=clamp(parseInt($('#extraSel').value,10)||0,0,6);
@@ -873,16 +1023,18 @@ function applySettings(){
   s.skipCost=Math.max(0,parseFloat($('#skipCostIn').value)||0);
   s.max=clamp(parseInt($('#maxIn').value,10)||8,Math.max(3,S.players.length),16);
   s.anon=$('#anonChk').checked;
+  if(s.bank!==prevBank)getBank(s.bank).catch(()=>{});
   broadcastLobby();
 }
 
 async function startGame(){
   if(!G||G.phase!=='lobby'||S.players.length<3)return;
   G.phase='starting';
-  broadcastLobby('Getting words ready...');
+  const bankLabel=(WORD_BANKS[S.settings.bank]||WORD_BANKS.mixed).label;
+  broadcastLobby('Loading '+bankLabel+' word bank...');
   const g=G;
   try{
-    g.bank=await getBank();
+    g.bank=await getBank(S.settings.bank);
     g.used=new Set();g.queue=[];g.relatedFailed=false;
     await ensureQueue(1);
   }catch(e){
@@ -890,7 +1042,7 @@ async function startGame(){
     return;
   }
   if(G!==g||g.phase!=='starting')return;
-  if(S.players.length<3){g.phase='lobby';broadcastLobby('Not enough players to start.');return;}
+  if(S.players.length<3){g.phase='lobby';broadcastLobby('You need at least 3 players to start.');return;}
   g.order=buildOrder(S.players.map(p=>p.id),S.settings.rounds);
   g.idx=0;g.scores={};g.names={};
   S.players.forEach(p=>{g.names[p.id]=p.name;g.scores[p.id]=0;});
@@ -1010,6 +1162,7 @@ function renderLobby(notice,busy){
   $('#pCount').textContent='('+S.players.length+'/'+s.max+')';
   $('#plist').innerHTML=S.players.map(p=>
     '<li><span>'+esc(p.name)+(p.id==='host'?'<span class="tagbit">host</span>':'')+(p.id===S.id?'<span class="tagbit">you</span>':'')+'</span></li>').join('');
+  $('#bankSel').value=s.bank||'mixed';
   $('#secSel').value=String(s.seconds);
   $('#roundsIn').value=s.rounds;
   $('#extraSel').value=String(s.extra);
@@ -1020,12 +1173,12 @@ function renderLobby(notice,busy){
   $('#maxIn').min=Math.max(3,S.players.length);
   $('#maxIn').value=s.max;
   $('#anonChk').checked=!!s.anon;
-  ['secSel','roundsIn','extraSel','limitSkipsChk','skipCostIn','maxIn','anonChk'].forEach(id=>{$('#'+id).disabled=!S.isHost||!!busy;});
+  ['bankSel','secSel','roundsIn','extraSel','limitSkipsChk','skipCostIn','maxIn','anonChk'].forEach(id=>{$('#'+id).disabled=!S.isHost||!!busy;});
   $('#maxSkipsIn').disabled=!S.isHost||!!busy||!s.limitSkips;
   $('#btnStart').classList.toggle('hidden',!S.isHost);
   $('#btnStart').disabled=S.players.length<3||!!busy;
   $('#waitNote').classList.toggle('hidden',S.isHost);
-  $('#lobbyNote').textContent=notice||(S.isHost&&S.players.length<3?'You need at least 2 players to start.':'');
+  $('#lobbyNote').textContent=notice||(S.isHost&&S.players.length<3?'You need at least 3 players to start.':'');
 }
 
 function startRoundUI(m){
@@ -1082,7 +1235,7 @@ function addChat(m){
 function rankRows(names,scores,highlightId,thisRound){
   return Object.keys(scores).sort((a,b)=>scores[b]-scores[a]).map((id,i)=>
     '<tr><td>'+(i+1)+'. '+(i===0?'<span class="circled">'+esc(names[id])+'</span>':esc(names[id]))+'</td><td>'+
-    (id===highlightId&&thisRound!=null?'<span class="small">'+(thisRound>=0?'+':'')+thisRound.toFixed(2)+'&nbsp;&nbsp;</span>':'')+scores[id].toFixed(2)+'</td></tr>').join('');
+    (id===highlightId&&thisRound!=null?'<span class="small">'+(thisRound>=0?'+':'')+thisRound.toFixed(2)+'  </span>':'')+scores[id].toFixed(2)+'</td></tr>').join('');
 }
 function renderReveal(m){
   const name=id=>esc(m.names[id]||'?');
@@ -1130,7 +1283,7 @@ $('#btnLeave2').onclick=()=>leaveToMenu();
 $('#btnStart').onclick=startGame;
 $('#btnNext').onclick=nextRound;
 $('#btnAgain').onclick=backToLobby;
-['secSel','roundsIn','extraSel','maxSkipsIn','skipCostIn','maxIn','anonChk'].forEach(id=>$('#'+id).addEventListener('change',applySettings));
+['bankSel','secSel','roundsIn','extraSel','maxSkipsIn','skipCostIn','maxIn','anonChk'].forEach(id=>$('#'+id).addEventListener('change',applySettings));
 $('#roomCode').onclick=()=>{
   try{navigator.clipboard.writeText(S.code);$('#copyNote').textContent='Copied.';setTimeout(()=>{$('#copyNote').textContent='Share this 5-letter code. Click it to copy.';},1500);}catch(e){}
 };

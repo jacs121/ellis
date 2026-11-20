@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ellis</title>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 :root{
   --paper:#fbf8f1; --ink:#2f2f33; --soft:#7a7a80; --red:#b5483f; --blue:#3f6aa3; --hi:#f6e58d;
@@ -145,8 +144,8 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
       <div class="or">or join a friend</div>
       <div class="row"><input id="codeIn" maxlength="5" placeholder="5-LTR" autocomplete="off" spellcheck="false"><button id="btnJoin">Join</button></div>
 
-      <label class="check tip" data-tip="Uses local/LAN peer connections and same-browser tabs directly with no local server needed. Everyone in the room should use the same setting.">
-        <input type="checkbox" id="localMode"> LAN room (same network / browser, no server)
+      <label class="check tip" data-tip="Local/same-browser mode only uses tabs in this browser (works completely offline). Untick to connect across phones, laptops, and friends on your Wi-Fi or online.">
+        <input type="checkbox" id="localMode"> Same-browser offline mode (tabs only)
       </label>
 
       <p id="menuErr" class="err"></p>
@@ -273,26 +272,11 @@ const FALLBACK_WORDS=[
   'windmill','wizard','xylophone','zebra'
 ];
 
-// LAN/local mode prioritizes host/mDNS/local ICE candidates without external STUN
-const LAN_PEER_OPTS={
-  debug:1,
-  config:{
-    iceServers:[],
-    iceTransportPolicy:'all'
-  }
-};
-
-// Standard PeerJS mode with STUN servers
-const NET_PEER_OPTS={
-  debug:1,
-  config:{
-    iceServers:[
-      {urls:'stun:stun.l.google.com:19302'},
-      {urls:'stun:stun1.l.google.com:19302'},
-      {urls:'stun:stun.cloudflare.com:3478'}
-    ]
-  }
-};
+// Public WSS MQTT brokers (work reliably on GitHub Pages HTTPS, file://, LAN Wi-Fi, and across devices without WebRTC NAT issues)
+const BROKERS=[
+  'wss://broker.emqx.io:8084/mqtt',
+  'wss://broker.hivemq.com:8884/mqtt'
+];
 
 // <logic>
 const ALIASES=["Fox","Owl","Newt","Moth","Lynx","Crow","Hare","Wren","Seal","Toad","Mole","Bat","Deer","Mink","Lark","Crab"];
@@ -384,8 +368,8 @@ const defaults=()=>({seconds:90,rounds:3,extra:0,max:8,anon:true});
 
 const SANDBOXED=(()=>{try{void window.localStorage;return false;}catch(e){return true;}})();
 const SANDBOX_MSG='Browser storage is blocked inside this sandboxed preview. Open index.html directly in your browser.';
-const LAN_FAIL_MSG='No reply from host. Check the 5-letter code, make sure everyone toggled LAN room consistently, and verify both devices are on the same network.';
-const NET_FAIL_MSG='No reply from host. Check the 5-letter code and ensure the host used the same room mode.';
+const LOCAL_FAIL_MSG='No reply from host in same-browser mode. Make sure both tabs are in the same browser and use the same 5-letter code.';
+const NET_FAIL_MSG='No reply from host. Check the 5-letter code and make sure the host has the room open.';
 const log=(...a)=>console.info('[Ellis]',...a);
 
 const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null};
@@ -438,176 +422,279 @@ function refill(){
   ensureQueue(2).catch(()=>{}).finally(()=>{g.filling=false;});
 }
 
-/* ---------------- transports (server-free) ---------------- */
-function peerHost(code,h,opts){
-  const peer=new Peer('ellis5-'+code,opts);
-  const conns={};
-  const outbox={};
-
-  function flush(id){
-    const c=conns[id], q=outbox[id];
-    if(!c||!c.open||!q||!q.length)return;
-    while(q.length)c.send(q.shift());
-  }
-
-  peer.on('open',()=>h.onReady());
-  peer.on('error',e=>h.onError(e));
-  peer.on('connection',conn=>{
-    const id=conn.peer;
-    conns[id]=conn;
-    outbox[id]=outbox[id]||[];
-    if(conn.open)flush(id);
-    conn.on('open',()=>{
-      conns[id]=conn;
-      flush(id);
-    });
-    conn.on('data',d=>h.onMsg(id,d));
-    conn.on('close',()=>{
-      delete conns[id];
-      delete outbox[id];
-      h.onLeave(id);
-    });
-    conn.on('error',err=>log('conn error',id,err));
-  });
-
-  return {
-    sendTo:(id,m)=>{
-      const c=conns[id];
-      if(!c)return;
-      if(c.open){c.send(m);}
-      else{(outbox[id]=outbox[id]||[]).push(m);}
-    },
-    broadcast:m=>{
-      Object.keys(conns).forEach(id=>{
-        const c=conns[id];
-        if(c&&c.open)c.send(m);
-        else if(c)(outbox[id]=outbox[id]||[]).push(m);
-      });
-    },
-    close:()=>peer.destroy()
-  };
+/* ---------------- zero-dependency MQTT over WSS client ---------------- */
+function mqttRemLen(len){
+  const out=[];
+  do{
+    let b=len%128;
+    len=Math.floor(len/128);
+    if(len>0)b|=128;
+    out.push(b);
+  }while(len>0);
+  return out;
 }
-
-function peerJoin(code,h,opts){
-  const peer=new Peer(opts);
-  let conn=null;
-  let opened=false;
-  const queue=[];
-
-  peer.on('open',id=>{
-    conn=peer.connect('ellis5-'+code,{reliable:true,serialization:'json'});
-    conn.on('open',()=>{
-      opened=true;
-      h.onOpen(id);
-      while(queue.length)conn.send(queue.shift());
-    });
-    conn.on('data',d=>h.onMsg(d));
-    conn.on('close',()=>h.onClose());
-    conn.on('error',e=>h.onError(e));
-  });
-  peer.on('error',e=>h.onError(e));
-
-  return {
-    send:m=>{
-      if(conn&&opened&&conn.open)conn.send(m);
-      else queue.push(m);
-    },
-    close:()=>peer.destroy()
-  };
+function mqttStr(s){
+  const b=new TextEncoder().encode(s);
+  return [(b.length>>8)&255,b.length&255,...b];
 }
+function createMqttClient(urls,clientId,topic,onReady,onMessage,onFail){
+  let idx=0,ws=null,closed=false,pingTimer=null,readyFired=false;
 
-// Server-free LAN transport: combines local/LAN WebRTC peer transport with instant BroadcastChannel for same-browser tabs
-function lanHost(code,h){
-  const pNet=peerHost(code,h,LAN_PEER_OPTS);
-  const ch=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('ellis5-lan-'+code):null;
-  const tabConns=new Set();
+  function connect(){
+    if(closed)return;
+    if(idx>=urls.length){
+      if(!readyFired&&onFail)onFail();
+      return;
+    }
+    const url=urls[idx++];
+    try{
+      ws=new WebSocket(url,['mqtt']);
+      ws.binaryType='arraybuffer';
+    }catch(e){
+      connect();
+      return;
+    }
 
-  if(ch){
-    ch.onmessage=e=>{
-      const d=e.data;
-      if(!d||d.to!=='host')return;
-      tabConns.add(d.from);
-      if(d.msg.t==='bye'){tabConns.delete(d.from);h.onLeave(d.from);}
-      else h.onMsg(d.from,d.msg);
+    const connTimeout=setTimeout(()=>{
+      if(!readyFired&&ws&&ws.readyState!==1){
+        try{ws.close();}catch(e){}
+      }
+    },4000);
+
+    ws.onopen=()=>{
+      const vh=[0,4,77,81,84,84,4,2,0,30]; // MQTT 3.1.1, clean session, keepalive 30s
+      const pl=mqttStr(clientId);
+      const body=[...vh,...pl];
+      ws.send(new Uint8Array([0x10,...mqttRemLen(body.length),...body]));
+    };
+
+    ws.onmessage=ev=>{
+      const buf=new Uint8Array(ev.data);
+      let pos=0;
+      while(pos<buf.length){
+        const type=buf[pos]>>4;
+        let mult=1,val=0,b=0;
+        pos++;
+        do{
+          if(pos>=buf.length)return;
+          b=buf[pos++];
+          val+=(b&127)*mult;
+          mult*=128;
+        }while((b&128)!==0);
+        const end=pos+val;
+        if(end>buf.length)return;
+
+        if(type===2){ // CONNACK
+          clearTimeout(connTimeout);
+          if(buf[pos+1]===0){
+            const subBody=[0,1,...mqttStr(topic),0];
+            ws.send(new Uint8Array([0x82,...mqttRemLen(subBody.length),...subBody]));
+            pingTimer=setInterval(()=>{
+              if(ws&&ws.readyState===1)ws.send(new Uint8Array([0xC0,0]));
+            },20000);
+          }else{
+            try{ws.close();}catch(e){}
+          }
+        }else if(type===9){ // SUBACK
+          if(!readyFired){
+            readyFired=true;
+            onReady();
+          }
+        }else if(type===3){ // PUBLISH
+          const tlen=(buf[pos]<<8)|buf[pos+1];
+          const pStart=pos+2+tlen;
+          const text=new TextDecoder().decode(buf.subarray(pStart,end));
+          try{onMessage(JSON.parse(text));}catch(e){}
+        }
+        pos=end;
+      }
+    };
+
+    ws.onerror=()=>{};
+    ws.onclose=()=>{
+      clearTimeout(connTimeout);
+      clearInterval(pingTimer);
+      if(!closed){
+        if(!readyFired)connect();
+        else{
+          // Reconnect to same broker if dropped mid-game
+          idx=Math.max(0,idx-1);
+          setTimeout(connect,1000);
+        }
+      }
     };
   }
 
-  const closing=()=>{
-    if(ch)try{ch.postMessage({to:'*',from:'host',msg:{t:'closed'}});}catch(e){}
-  };
-  window.addEventListener('beforeunload',closing);
+  connect();
 
   return {
-    sendTo:(id,msg)=>{
-      if(tabConns.has(id)&&ch){
-        ch.postMessage({to:id,from:'host',msg});
-      }else{
-        pNet.sendTo(id,msg);
-      }
-    },
-    broadcast:msg=>{
-      if(ch&&tabConns.size){
-        ch.postMessage({to:'*',from:'host',msg});
-      }
-      pNet.broadcast(msg);
+    publish:(obj)=>{
+      if(!ws||ws.readyState!==1)return false;
+      const pay=new TextEncoder().encode(JSON.stringify(obj));
+      const tBytes=mqttStr(topic);
+      const len=tBytes.length+pay.length;
+      const pkt=new Uint8Array([0x30,...mqttRemLen(len),...tBytes,...pay]);
+      ws.send(pkt);
+      return true;
     },
     close:()=>{
-      closing();
-      window.removeEventListener('beforeunload',closing);
-      if(ch)ch.close();
-      pNet.close();
+      closed=true;
+      clearInterval(pingTimer);
+      if(ws)try{ws.close();}catch(e){}
     }
   };
 }
 
-function lanJoin(code,h){
-  const tabId='tab-'+Math.random().toString(36).slice(2,9);
-  const ch=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('ellis5-lan-'+code):null;
-  let viaTab=false;
-  let pNet=null;
+/* ---------------- transports ---------------- */
+function netHost(code,h){
+  const topic='ellis-game/v1/'+code;
+  const ch=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('ellis5-'+code):null;
+  const seenPeers=new Map(); // id -> lastSeen timestamp
 
-  const onTabMsg=e=>{
-    const d=e.data;
+  const handlePacket=(d)=>{
+    if(!d||d.to!=='host'||!d.from)return;
+    seenPeers.set(d.from,Date.now());
+    if(d.msg.t==='ping')return;
+    if(d.msg.t==='bye'){
+      seenPeers.delete(d.from);
+      h.onLeave(d.from);
+    }else{
+      h.onMsg(d.from,d.msg);
+    }
+  };
+
+  if(ch)ch.onmessage=e=>handlePacket(e.data);
+
+  const mq=createMqttClient(
+    BROKERS,
+    'ellis-h-'+code+'-'+Math.random().toString(36).slice(2,7),
+    topic,
+    ()=>h.onReady(),
+    handlePacket,
+    ()=>h.onError({type:'broker-unavailable'})
+  );
+
+  // Detect disconnected clients if they closed browser without sending bye
+  const sweep=setInterval(()=>{
+    const now=Date.now();
+    for(const [id,ts] of seenPeers.entries()){
+      if(now-ts>25000){
+        seenPeers.delete(id);
+        h.onLeave(id);
+      }
+    }
+  },8000);
+
+  const emit=(to,msg)=>{
+    const pkt={to,from:'host',msg};
+    if(ch)try{ch.postMessage(pkt);}catch(e){}
+    mq.publish(pkt);
+  };
+
+  const closing=()=>emit('*',{t:'closed'});
+  window.addEventListener('beforeunload',closing);
+
+  return {
+    sendTo:(id,msg)=>emit(id,msg),
+    broadcast:msg=>emit('*',msg),
+    close:()=>{
+      clearInterval(sweep);
+      closing();
+      window.removeEventListener('beforeunload',closing);
+      if(ch)ch.close();
+      mq.close();
+    }
+  };
+}
+
+function netJoin(code,h){
+  const id='p-'+Math.random().toString(36).slice(2,9);
+  const topic='ellis-game/v1/'+code;
+  const ch=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('ellis5-'+code):null;
+  let opened=false;
+  const pending=[];
+
+  const handlePacket=(d)=>{
     if(!d||d.from!=='host')return;
-    if(d.to===tabId||d.to==='*'){
-      viaTab=true;
-      if(pNet){try{pNet.close();}catch(err){} pNet=null;}
+    if(d.to===id||d.to==='*'){
       if(d.msg.t==='closed')h.onClose();
       else h.onMsg(d.msg);
     }
   };
-  if(ch)ch.onmessage=onTabMsg;
 
-  // Start WebRTC LAN connection as well; if same-browser tab answers first, it uses BroadcastChannel
-  pNet=peerJoin(code,{
-    onOpen:id=>{if(!viaTab)h.onOpen(id);},
-    onMsg:d=>{if(!viaTab)h.onMsg(d);},
-    onClose:()=>{if(!viaTab)h.onClose();},
-    onError:e=>{if(!viaTab)h.onError(e);}
-  },LAN_PEER_OPTS);
+  if(ch)ch.onmessage=e=>handlePacket(e.data);
 
-  const bye=()=>{
-    if(viaTab&&ch)try{ch.postMessage({to:'host',from:tabId,msg:{t:'bye'}});}catch(e){}
+  const mq=createMqttClient(
+    BROKERS,
+    'ellis-c-'+id,
+    topic,
+    ()=>{
+      if(!opened){
+        opened=true;
+        h.onOpen(id);
+        while(pending.length)emit(pending.shift());
+      }
+    },
+    handlePacket,
+    ()=>h.onError({type:'broker-unavailable'})
+  );
+
+  const emit=(msg)=>{
+    const pkt={to:'host',from:id,msg};
+    if(ch)try{ch.postMessage(pkt);}catch(e){}
+    if(!mq.publish(pkt)&&!opened)pending.push(msg);
   };
+
+  // Heartbeat so host knows client is still connected
+  const hb=setInterval(()=>{
+    if(S.welcomed)emit({t:'ping'});
+  },10000);
+
+  const bye=()=>emit({t:'bye'});
   window.addEventListener('beforeunload',bye);
 
-  setTimeout(()=>{
-    if(!viaTab&&!S.welcomed&&ch){
-      try{ch.postMessage({to:'host',from:tabId,msg:{t:'hello',name:$('#nameIn').value.trim()||'Player'}});}catch(e){}
-    }
-  },80);
-
   return {
-    send:msg=>{
-      if(viaTab&&ch)ch.postMessage({to:'host',from:tabId,msg});
-      else if(pNet)pNet.send(msg);
-    },
+    send:msg=>emit(msg),
     close:()=>{
+      clearInterval(hb);
       bye();
       window.removeEventListener('beforeunload',bye);
       if(ch)ch.close();
-      if(pNet)try{pNet.close();}catch(err){}
+      mq.close();
     }
+  };
+}
+
+// Same-browser offline mode (tabs only)
+function localHost(code,h){
+  const ch=new BroadcastChannel('ellis5-local-'+code);
+  ch.onmessage=e=>{
+    const d=e.data;if(!d||d.to!=='host')return;
+    if(d.msg.t==='bye')h.onLeave(d.from);
+    else h.onMsg(d.from,d.msg);
+  };
+  const closing=()=>{try{ch.postMessage({to:'*',from:'host',msg:{t:'closed'}});}catch(e){}};
+  window.addEventListener('beforeunload',closing);
+  setTimeout(h.onReady,0);
+  return {
+    sendTo:(id,msg)=>ch.postMessage({to:id,from:'host',msg}),
+    broadcast:msg=>ch.postMessage({to:'*',from:'host',msg}),
+    close:()=>{closing();window.removeEventListener('beforeunload',closing);ch.close();}
+  };
+}
+function localJoin(code,h){
+  const id='g'+Math.random().toString(36).slice(2,9);
+  const ch=new BroadcastChannel('ellis5-local-'+code);
+  ch.onmessage=e=>{
+    const d=e.data;if(!d||d.from!=='host')return;
+    if(d.to===id||d.to==='*'){if(d.msg.t==='closed')h.onClose();else h.onMsg(d.msg);}
+  };
+  const bye=()=>{try{ch.postMessage({to:'host',from:id,msg:{t:'bye'}});}catch(e){}};
+  window.addEventListener('beforeunload',bye);
+  setTimeout(()=>h.onOpen(id),0);
+  return {
+    send:msg=>ch.postMessage({to:'host',from:id,msg}),
+    close:()=>{bye();window.removeEventListener('beforeunload',bye);ch.close();}
   };
 }
 
@@ -635,27 +722,23 @@ function leaveToMenu(msg){
   show('menu');setErr(msg||'');
 }
 
-function createRoom(attempt){
-  attempt=attempt||0;
+function createRoom(){
   const name=getName(); if(!name)return;
   S.local=$('#localMode').checked;
   if(S.local&&SANDBOXED){setErr(SANDBOX_MSG);return;}
-  if(typeof Peer==='undefined'){setErr('PeerJS library did not load. Check your connection.');return;}
   leaveToMenu();
   const code=genCode();
   S.isHost=true;S.code=code;S.id='host';S.players=[{id:'host',name}];S.settings=defaults();
   G={phase:'lobby',order:[],queue:[],used:new Set(),names:{},scores:{},idx:0};
+  setErr('Creating room '+code+'...');
   const h={
-    onReady:()=>{broadcastLobby();getBank().catch(()=>{});},
+    onReady:()=>{setErr('');broadcastLobby();getBank().catch(()=>{});},
     onMsg:hostHandle,
     onLeave:hostLeave,
-    onError:e=>{
-      if(e&&e.type==='unavailable-id'&&attempt<4){createRoom(attempt+1);}
-      else leaveToMenu('Could not create the room ('+((e&&e.type)||'unknown error')+').');
-    }
+    onError:e=>leaveToMenu('Could not connect to relay ('+((e&&e.type)||'network error')+'). Check your internet or tick Same-browser offline mode.')
   };
-  log('creating room',code,S.local?'(LAN)':'(PeerJS)');
-  S.net=S.local?lanHost(code,h):peerHost(code,h,NET_PEER_OPTS);
+  log('creating room',code,S.local?'(same-browser)':'(network)');
+  S.net=S.local?localHost(code,h):netHost(code,h);
 }
 
 function joinRoom(){
@@ -664,21 +747,25 @@ function joinRoom(){
   if(code.length!==5){setErr('Enter the 5-letter room code.');$('#codeIn').focus();return;}
   S.local=$('#localMode').checked;
   if(S.local&&SANDBOXED){setErr(SANDBOX_MSG);return;}
-  if(typeof Peer==='undefined'){setErr('PeerJS library did not load. Check your connection.');return;}
   leaveToMenu();
   S.isHost=false;S.code=code;
   const h={
-    onOpen:id=>{S.id=id;S.net.send({t:'hello',name});},
+    onOpen:id=>{
+      S.id=id;
+      S.net.send({t:'hello',name});
+      // Retry hello once after 2s in case host subscribed slightly after
+      setTimeout(()=>{if(!S.welcomed&&S.net)S.net.send({t:'hello',name});},2000);
+    },
     onMsg:clientHandle,
     onClose:()=>{if(S.net)leaveToMenu('The host closed the room.');},
-    onError:e=>{if(S.net)leaveToMenu(e&&e.type==='peer-unavailable'?'No room found with code '+code+'.':'Connection problem ('+((e&&e.type)||'unknown')+').');}
+    onError:e=>{if(S.net)leaveToMenu('Connection problem ('+((e&&e.type)||'network error')+').');}
   };
-  log('joining',code,S.local?'(LAN)':'(PeerJS)');
-  S.net=S.local?lanJoin(code,h):peerJoin(code,h,NET_PEER_OPTS);
+  log('joining',code,S.local?'(same-browser)':'(network)');
+  S.net=S.local?localJoin(code,h):netJoin(code,h);
   setErr('Connecting to '+code+'...');
   S.joinTimer=setTimeout(()=>{
-    if(!S.welcomed){log('no reply from host');leaveToMenu(S.local?LAN_FAIL_MSG:NET_FAIL_MSG);}
-  },S.local?7000:12000);
+    if(!S.welcomed){log('no reply from host');leaveToMenu(S.local?LOCAL_FAIL_MSG:NET_FAIL_MSG);}
+  },S.local?4000:10000);
 }
 
 /* ---------------- host logic ---------------- */
@@ -702,11 +789,13 @@ function hostHandle(from,m){
   if(!G||!m)return;
   if(m.t==='hello'){
     if(G.phase!=='lobby'){send(from,{t:'denied',reason:'That game has already started.'});return;}
-    if(S.players.length>=S.settings.max){send(from,{t:'denied',reason:'That room is full.'});return;}
-    const base=String(m.name||'').replace(/\s+/g,' ').trim().slice(0,14)||'Player';
-    let name=base,k=2;
-    while(S.players.some(p=>p.name.toLowerCase()===name.toLowerCase()))name=base+' '+(k++);
-    if(!S.players.some(p=>p.id===from))S.players.push({id:from,name});
+    if(S.players.length>=S.settings.max&&!S.players.some(p=>p.id===from)){send(from,{t:'denied',reason:'That room is full.'});return;}
+    if(!S.players.some(p=>p.id===from)){
+      const base=String(m.name||'').replace(/\s+/g,' ').trim().slice(0,14)||'Player';
+      let name=base,k=2;
+      while(S.players.some(p=>p.name.toLowerCase()===name.toLowerCase()))name=base+' '+(k++);
+      S.players.push({id:from,name});
+    }
     send(from,{t:'welcome',id:from});
     broadcastLobby();
     return;
@@ -851,7 +940,7 @@ function clientHandle(m){
 function renderLobby(notice,busy){
   const s=S.settings;
   $('#roomCode').textContent=S.code;
-  $('#netModeNote').textContent=S.local?'LAN room (no server)':'Online room';
+  $('#netModeNote').textContent=S.local?'Same-browser offline mode':'Multiplayer room (LAN & Online)';
   $('#pCount').textContent='('+S.players.length+'/'+s.max+')';
   $('#plist').innerHTML=S.players.map(p=>
     '<li><span>'+esc(p.name)+(p.id==='host'?'<span class="tagbit">host</span>':'')+(p.id===S.id?'<span class="tagbit">you</span>':'')+'</span></li>').join('');
@@ -943,10 +1032,10 @@ function renderFinal(m){
 $('#codeIn').addEventListener('input',e=>{
   e.target.value=e.target.value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,5);
 });
-$('#btnCreate').onclick=()=>createRoom(0);
+$('#btnCreate').onclick=createRoom;
 $('#btnJoin').onclick=joinRoom;
 $('#codeIn').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
-$('#nameIn').addEventListener('keydown',e=>{if(e.key==='Enter')createRoom(0);});
+$('#nameIn').addEventListener('keydown',e=>{if(e.key==='Enter')createRoom();});
 $('#btnHow').onclick=()=>$('#how').classList.toggle('hidden');
 $('#btnLeave').onclick=()=>leaveToMenu();
 $('#btnLeave2').onclick=()=>leaveToMenu();

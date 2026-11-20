@@ -52,18 +52,20 @@ button:hover:not(:disabled){transform:rotate(-1.4deg) scale(1.04);background:#f1
 button:active:not(:disabled){transform:scale(.96)}
 button:disabled{opacity:.4;cursor:not-allowed}
 button.primary{background-image:repeating-linear-gradient(135deg,transparent 0 5px,rgba(63,106,163,.2) 5px 7px)}
+button.danger{border-color:var(--red);color:var(--red)}
 button.link{border:none;text-decoration:underline wavy rgba(47,47,51,.4);text-underline-offset:5px;display:inline-block;margin:6px auto}
 
 input[type=text],input[type=number],input:not([type]),select{
   font:inherit;color:var(--ink);background:transparent;border:none;border-bottom:2.5px solid var(--ink);
   border-radius:3px 12px 3px 10px;padding:4px 8px;outline:none;min-width:0;
 }
-input[type=number]{width:76px;text-align:right}
+input[type=number]{width:84px;text-align:right}
 input:focus,select:focus{border-bottom-color:var(--blue);background:rgba(63,106,163,.06)}
 input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
 input::placeholder{color:#b3b0a6}
 label{display:flex;flex-direction:column;gap:4px;color:var(--soft);font-size:18px}
 label.check{flex-direction:row;align-items:center;gap:8px;font-size:17px;color:var(--ink);cursor:pointer}
+label.inline-check{flex-direction:row;align-items:center;gap:6px;font-size:16px;color:var(--soft);cursor:pointer}
 input[type=checkbox]{accent-color:var(--ink);width:20px;height:20px;cursor:pointer}
 .or{text-align:center;color:var(--soft)}
 #codeIn{text-transform:uppercase;letter-spacing:6px;width:162px;text-align:center;font-size:26px}
@@ -84,6 +86,7 @@ select{cursor:pointer}
 .set{flex-direction:row;justify-content:space-between;align-items:center;gap:16px;color:var(--ink);font-size:20px;padding:6px 0;border-bottom:1.5px dashed #c8c4b6}
 .set:last-child{border-bottom:none}
 .set > span{border-bottom:2px dotted rgba(47,47,51,.35)}
+.set-right{display:flex;align-items:center;gap:10px}
 
 .code{font-family:'Caveat',cursive;font-size:84px;font-weight:700;letter-spacing:10px;cursor:pointer;line-height:1;margin:4px 0;filter:url(#rough)}
 ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
@@ -198,6 +201,17 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
           <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
           <option value="4">4</option><option value="5">5</option><option value="6">6</option>
         </select>
+      </label>
+      <div class="set tip" data-tip="How many times a chosen player can skip a word in a round (0 = no skips allowed). Uncheck 'Limit skips' to allow infinite skips. Once skips run out, the skip button turns into a Give up button.">
+        <span>Max skips</span>
+        <div class="set-right">
+          <input id="maxSkipsIn" type="number" min="0" max="50" value="3">
+          <label class="inline-check"><input id="limitSkipsChk" type="checkbox" checked> Limit skips</label>
+        </div>
+      </div>
+      <label class="set tip" data-tip="Points deducted from the chosen player's score each time they skip a word (0 for no cost).">
+        <span>Skip cost</span>
+        <input id="skipCostIn" type="number" min="0" max="50" step="0.25" value="0">
       </label>
       <label class="set tip" data-tip="How many people can join this room, from 3 to 16. It cannot be set lower than the number of players already in the room.">
         <span>Players (max)</span>
@@ -359,12 +373,13 @@ function buildOrder(ids,rounds){
 // </logic>
 
 const $=s=>document.querySelector(s);
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&','<':'<','>':'>','"':'"',"'":'"'}[c]));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const show=id=>{document.querySelectorAll('.screen').forEach(e=>e.classList.add('hidden'));$('#'+id).classList.remove('hidden');window.scrollTo(0,0);};
 const fmtClock=ms=>{const s=Math.ceil(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
-const defaults=()=>({seconds:90,rounds:3,extra:0,max:8,anon:true});
+const defaults=()=>({seconds:90,rounds:3,extra:0,maxSkips:3,limitSkips:true,skipCost:0,max:8,anon:true});
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 
 const SANDBOXED=(()=>{try{void window.localStorage;return false;}catch(e){return true;}})();
 const SANDBOX_MSG='Browser storage is blocked inside this sandboxed preview. Open index.html directly in your browser.';
@@ -372,8 +387,19 @@ const LOCAL_FAIL_MSG='No reply from host in same-browser mode. Make sure both ta
 const NET_FAIL_MSG='No reply from host. Check the 5-letter code and make sure the host has the room open.';
 const log=(...a)=>console.info('[Ellis]',...a);
 
-const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null};
+const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null,seenMids:new Set()};
 let G=null;
+
+function markSeen(mid){
+  if(!mid)return false;
+  if(S.seenMids.has(mid))return true;
+  S.seenMids.add(mid);
+  if(S.seenMids.size>600){
+    const first=S.seenMids.values().next().value;
+    S.seenMids.delete(first);
+  }
+  return false;
+}
 
 /* ---------------- word bank and related words ---------------- */
 async function fetchJson(url,ms){
@@ -552,6 +578,7 @@ function netHost(code,h){
 
   const handlePacket=(d)=>{
     if(!d||d.to!=='host'||!d.from)return;
+    if(markSeen(d.mid))return;
     seenPeers.set(d.from,Date.now());
     if(d.msg.t==='ping')return;
     if(d.msg.t==='bye'){
@@ -584,7 +611,7 @@ function netHost(code,h){
   },8000);
 
   const emit=(to,msg)=>{
-    const pkt={to,from:'host',msg};
+    const pkt={mid:uid(),to,from:'host',msg};
     if(ch)try{ch.postMessage(pkt);}catch(e){}
     mq.publish(pkt);
   };
@@ -615,6 +642,7 @@ function netJoin(code,h){
   const handlePacket=(d)=>{
     if(!d||d.from!=='host')return;
     if(d.to===id||d.to==='*'){
+      if(markSeen(d.mid))return;
       if(d.msg.t==='closed')h.onClose();
       else h.onMsg(d.msg);
     }
@@ -638,7 +666,7 @@ function netJoin(code,h){
   );
 
   const emit=(msg)=>{
-    const pkt={to:'host',from:id,msg};
+    const pkt={mid:uid(),to:'host',from:id,msg};
     if(ch)try{ch.postMessage(pkt);}catch(e){}
     if(!mq.publish(pkt)&&!opened)pending.push(msg);
   };
@@ -666,15 +694,16 @@ function localHost(code,h){
   const ch=new BroadcastChannel('ellis5-local-'+code);
   ch.onmessage=e=>{
     const d=e.data;if(!d||d.to!=='host')return;
+    if(markSeen(d.mid))return;
     if(d.msg.t==='bye')h.onLeave(d.from);
     else h.onMsg(d.from,d.msg);
   };
-  const closing=()=>{try{ch.postMessage({to:'*',from:'host',msg:{t:'closed'}});}catch(e){}};
+  const closing=()=>{try{ch.postMessage({mid:uid(),to:'*',from:'host',msg:{t:'closed'}});}catch(e){}};
   window.addEventListener('beforeunload',closing);
   setTimeout(h.onReady,0);
   return {
-    sendTo:(id,msg)=>ch.postMessage({to:id,from:'host',msg}),
-    broadcast:msg=>ch.postMessage({to:'*',from:'host',msg}),
+    sendTo:(id,msg)=>ch.postMessage({mid:uid(),to:id,from:'host',msg}),
+    broadcast:msg=>ch.postMessage({mid:uid(),to:'*',from:'host',msg}),
     close:()=>{closing();window.removeEventListener('beforeunload',closing);ch.close();}
   };
 }
@@ -683,13 +712,16 @@ function localJoin(code,h){
   const ch=new BroadcastChannel('ellis5-local-'+code);
   ch.onmessage=e=>{
     const d=e.data;if(!d||d.from!=='host')return;
-    if(d.to===id||d.to==='*'){if(d.msg.t==='closed')h.onClose();else h.onMsg(d.msg);}
+    if(d.to===id||d.to==='*'){
+      if(markSeen(d.mid))return;
+      if(d.msg.t==='closed')h.onClose();else h.onMsg(d.msg);
+    }
   };
-  const bye=()=>{try{ch.postMessage({to:'host',from:id,msg:{t:'bye'}});}catch(e){}};
+  const bye=()=>{try{ch.postMessage({mid:uid(),to:'host',from:id,msg:{t:'bye'}});}catch(e){}};
   window.addEventListener('beforeunload',bye);
   setTimeout(()=>h.onOpen(id),0);
   return {
-    send:msg=>ch.postMessage({to:'host',from:id,msg}),
+    send:msg=>ch.postMessage({mid:uid(),to:'host',from:id,msg}),
     close:()=>{bye();window.removeEventListener('beforeunload',bye);ch.close();}
   };
 }
@@ -769,8 +801,9 @@ function send(id,msg){
   else if(S.net)S.net.sendTo(id,msg);
 }
 function broadcast(msg){
-  if(S.net)S.net.broadcast(msg);
-  clientHandle(clone(msg));
+  const mid=uid();
+  if(S.net)S.net.broadcast(Object.assign({mid},msg));
+  clientHandle(Object.assign({mid},clone(msg)));
 }
 function broadcastLobby(notice){
   broadcast({t:'lobby',players:S.players.map(p=>({id:p.id,name:p.name})),settings:clone(S.settings),code:S.code,
@@ -797,7 +830,21 @@ function hostHandle(from,m){
   }
   if(!S.players.some(p=>p.id===from))return;
   if(m.t==='chat')onChat(from,m.text);
-  else if(m.t==='skip'&&G.phase==='round'&&from===G.chosenId)nextWord();
+  else if(m.t==='skip'&&G.phase==='round'&&from===G.chosenId)handleSkip();
+  else if(m.t==='giveup'&&G.phase==='round'&&from===G.chosenId)endRound();
+}
+
+function handleSkip(){
+  const g=G; if(!g||g.phase!=='round')return;
+  const s=S.settings;
+  if(s.limitSkips){
+    if(g.skipsUsed>=s.maxSkips)return;
+  }
+  g.skipsUsed++;
+  if(s.skipCost>0){
+    g.scores[g.chosenId]=(g.scores[g.chosenId]||0)-s.skipCost;
+  }
+  nextWord();
 }
 
 function hostLeave(id){
@@ -807,7 +854,7 @@ function hostLeave(id){
   if(G.phase==='lobby'){broadcastLobby();return;}
   if(G.phase==='starting')return;
   G.order=G.order.filter((x,j)=>!(x===id&&j>G.idx));
-  if(S.players.length<2){
+  if(S.players.length<3){
     clearTimeout(G.timer);G.phase='lobby';
     broadcastLobby('Not enough players left, so the game went back to the lobby.');
     return;
@@ -821,13 +868,16 @@ function applySettings(){
   s.seconds=+$('#secSel').value||90;
   s.rounds=clamp(parseInt($('#roundsIn').value,10)||1,1,20);
   s.extra=clamp(parseInt($('#extraSel').value,10)||0,0,6);
+  s.limitSkips=$('#limitSkipsChk').checked;
+  s.maxSkips=clamp(parseInt($('#maxSkipsIn').value,10)||0,0,50);
+  s.skipCost=Math.max(0,parseFloat($('#skipCostIn').value)||0);
   s.max=clamp(parseInt($('#maxIn').value,10)||8,Math.max(3,S.players.length),16);
   s.anon=$('#anonChk').checked;
   broadcastLobby();
 }
 
 async function startGame(){
-  if(!G||G.phase!=='lobby'||S.players.length<2)return;
+  if(!G||G.phase!=='lobby'||S.players.length<3)return;
   G.phase='starting';
   broadcastLobby('Getting words ready...');
   const g=G;
@@ -840,7 +890,7 @@ async function startGame(){
     return;
   }
   if(G!==g||g.phase!=='starting')return;
-  if(S.players.length<2){g.phase='lobby';broadcastLobby('Not enough players to start.');return;}
+  if(S.players.length<3){g.phase='lobby';broadcastLobby('Not enough players to start.');return;}
   g.order=buildOrder(S.players.map(p=>p.id),S.settings.rounds);
   g.idx=0;g.scores={};g.names={};
   S.players.forEach(p=>{g.names[p.id]=p.name;g.scores[p.id]=0;});
@@ -848,7 +898,7 @@ async function startGame(){
 }
 async function startRound(){
   const g=G;
-  g.phase='preparing';g.chosenId=g.order[g.idx];g.words=[];g.lastMsg={};g.word=null;g.blocked=[];
+  g.phase='preparing';g.chosenId=g.order[g.idx];g.words=[];g.lastMsg={};g.word=null;g.blocked=[];g.skipsUsed=0;
   try{await ensureQueue(1);}catch(e){}
   if(G!==g||g.phase!=='preparing')return;
   g.phase='round';
@@ -865,6 +915,13 @@ async function startRound(){
   g.timer=setTimeout(endRound,g.ms);
   if(!S.players.some(p=>p.id===g.chosenId))endRound();
 }
+function skipMeta(){
+  const s=S.settings, g=G;
+  const used=g?g.skipsUsed:0;
+  if(!s.limitSkips)return {canSkip:true,remaining:Infinity,used};
+  const remaining=Math.max(0,s.maxSkips-used);
+  return {canSkip:remaining>0,remaining,used};
+}
 async function nextWord(){
   const g=G; if(!g)return;
   g.word=null;g.blocked=[];
@@ -875,7 +932,8 @@ async function nextWord(){
   }
   if(g.word!==null)return;
   g.word=e.word;g.blocked=e.blocked;
-  send(g.chosenId,{t:'word',word:e.word,blocked:e.blocked,count:g.words.length});
+  const sm=skipMeta();
+  send(g.chosenId,{t:'word',word:e.word,blocked:e.blocked,count:g.words.length,canSkip:sm.canSkip,remainingSkips:sm.remaining,skipsUsed:sm.used});
   refill();
 }
 function onChat(from,text){
@@ -898,10 +956,12 @@ function onChat(from,text){
 function endRound(){
   if(!G||G.phase!=='round')return;
   clearTimeout(G.timer);G.phase='reveal';
-  const minutes=G.ms/60000,count=G.words.length,points=count/minutes;
-  G.scores[G.chosenId]=(G.scores[G.chosenId]||0)+points;
-  broadcast({t:'reveal',chosenId:G.chosenId,words:G.words,missed:G.word||'',count,minutes,points,anon:G.anon,
-    names:G.names,aliases:G.aliases,scores:G.scores,last:G.idx>=G.order.length-1,n:g.idx+1,total:G.order.length});
+  const minutes=G.ms/60000,count=G.words.length;
+  const skipPenalty=(G.skipsUsed||0)*(S.settings.skipCost||0);
+  const points=(count/minutes)-skipPenalty;
+  G.scores[G.chosenId]=(G.scores[G.chosenId]||0)+(count/minutes)-skipPenalty;
+  broadcast({t:'reveal',chosenId:G.chosenId,words:G.words,missed:G.word||'',count,minutes,points,skipPenalty,skipsUsed:G.skipsUsed||0,anon:G.anon,
+    names:G.names,aliases:G.aliases,scores:G.scores,last:G.idx>=G.order.length-1,n:G.idx+1,total:G.order.length});
 }
 function nextRound(){
   if(!G||G.phase!=='reveal')return;
@@ -915,6 +975,7 @@ function backToLobby(){
 
 /* ---------------- client logic / UI ---------------- */
 function clientHandle(m){
+  if(m&&m.mid&&markSeen(m.mid))return;
   switch(m.t){
     case 'welcome':S.welcomed=true;clearTimeout(S.joinTimer);S.id=m.id;break;
     case 'denied':leaveToMenu(m.reason);break;
@@ -923,7 +984,17 @@ function clientHandle(m){
       S.players=m.players;S.settings=m.settings;S.code=m.code;S.R=null;clearInterval(S.tick);
       show('lobby');renderLobby(m.notice,m.busy);break;
     case 'round':startRoundUI(m);break;
-    case 'word':if(S.R){S.R.word=m.word;S.R.blocked=m.blocked||[];S.R.count=m.count;renderRole();}break;
+    case 'word':
+      if(S.R){
+        S.R.word=m.word;
+        S.R.blocked=m.blocked||[];
+        S.R.count=m.count;
+        S.R.canSkip=m.canSkip!==false;
+        S.R.remainingSkips=m.remainingSkips;
+        S.R.skipsUsed=m.skipsUsed||0;
+        renderRole();
+      }
+      break;
     case 'chat':addChat(m);break;
     case 'sys':addLine('sys',m.text);break;
     case 'reject':addLine('note','That gives away part of the word or a blocked word. Describe it another way.');break;
@@ -942,18 +1013,23 @@ function renderLobby(notice,busy){
   $('#secSel').value=String(s.seconds);
   $('#roundsIn').value=s.rounds;
   $('#extraSel').value=String(s.extra);
+  $('#limitSkipsChk').checked=s.limitSkips!==false;
+  $('#maxSkipsIn').value=s.maxSkips!=null?s.maxSkips:3;
+  $('#maxSkipsIn').disabled=!S.isHost||!!busy||!$('#limitSkipsChk').checked;
+  $('#skipCostIn').value=s.skipCost!=null?s.skipCost:0;
   $('#maxIn').min=Math.max(3,S.players.length);
   $('#maxIn').value=s.max;
   $('#anonChk').checked=!!s.anon;
-  ['secSel','roundsIn','extraSel','maxIn','anonChk'].forEach(id=>{$('#'+id).disabled=!S.isHost||!!busy;});
+  ['secSel','roundsIn','extraSel','limitSkipsChk','skipCostIn','maxIn','anonChk'].forEach(id=>{$('#'+id).disabled=!S.isHost||!!busy;});
+  $('#maxSkipsIn').disabled=!S.isHost||!!busy||!s.limitSkips;
   $('#btnStart').classList.toggle('hidden',!S.isHost);
-  $('#btnStart').disabled=S.players.length<2||!!busy;
+  $('#btnStart').disabled=S.players.length<3||!!busy;
   $('#waitNote').classList.toggle('hidden',S.isHost);
-  $('#lobbyNote').textContent=notice||(S.isHost&&S.players.length<3?'You need at least 3 players to start.':'');
+  $('#lobbyNote').textContent=notice||(S.isHost&&S.players.length<3?'You need at least 2 players to start.':'');
 }
 
 function startRoundUI(m){
-  S.R={n:m.n,total:m.total,endsAt:Date.now()+m.ms,ms:m.ms,alias:m.aliases[S.id],anon:m.anon,word:null,blocked:[],count:0};
+  S.R={n:m.n,total:m.total,endsAt:Date.now()+m.ms,ms:m.ms,alias:m.aliases[S.id],anon:m.anon,word:null,blocked:[],count:0,canSkip:true,remainingSkips:Infinity,skipsUsed:0};
   $('#chatLog').innerHTML='';
   $('#roundInfo').textContent='Round '+m.n+' of '+m.total;
   $('#youAre').textContent=m.anon?'You appear as '+S.R.alias:'Names are visible this round';
@@ -965,11 +1041,20 @@ function startRoundUI(m){
 function renderRole(){
   const R=S.R; if(!R)return;
   if(R.word){
+    const s=S.settings;
+    const costTxt=(s.skipCost>0?' (-'+s.skipCost.toFixed(2)+' pts)':'');
+    const skipLabel=!s.limitSkips
+      ?('Skip word (∞'+costTxt+')')
+      :('Skip word ('+Math.max(0,R.remainingSkips)+' left'+costTxt+')');
+    const actionBtn=R.canSkip
+      ?('<button type="button" id="btnSkip">'+esc(skipLabel)+'</button>')
+      :('<button type="button" id="btnGiveUp" class="danger">Give up round</button>');
     $('#role').innerHTML='<div class="small">You are the chosen one. Your word:</div><div class="theword">'+esc(R.word)+'</div>'+
       (R.blocked.length?'<div class="blocked">Also blocked: '+R.blocked.map(esc).join(', ')+'</div>':'')+
       '<div class="small">Get the others to write it. Never say it, or any part of it.</div>'+
-      '<div class="row" style="margin-top:8px"><span>Found: <b>'+R.count+'</b></span><button type="button" id="btnSkip">Skip this word</button></div>';
-    $('#btnSkip').onclick=()=>sendToHost({t:'skip'});
+      '<div class="row" style="margin-top:8px"><span>Found: <b>'+R.count+'</b></span>'+actionBtn+'</div>';
+    if($('#btnSkip'))$('#btnSkip').onclick=()=>sendToHost({t:'skip'});
+    if($('#btnGiveUp'))$('#btnGiveUp').onclick=()=>sendToHost({t:'giveup'});
     $('#chatIn').placeholder='Write a clue...';
   }else{
     $('#role').innerHTML='<div class="small">One of you holds a secret word.</div><div style="font-size:26px">Work out the word and write it in the chat.</div>';
@@ -997,7 +1082,7 @@ function addChat(m){
 function rankRows(names,scores,highlightId,thisRound){
   return Object.keys(scores).sort((a,b)=>scores[b]-scores[a]).map((id,i)=>
     '<tr><td>'+(i+1)+'. '+(i===0?'<span class="circled">'+esc(names[id])+'</span>':esc(names[id]))+'</td><td>'+
-    (id===highlightId&&thisRound!=null?'<span class="small">+'+thisRound.toFixed(2)+'  </span>':'')+scores[id].toFixed(2)+'</td></tr>').join('');
+    (id===highlightId&&thisRound!=null?'<span class="small">'+(thisRound>=0?'+':'')+thisRound.toFixed(2)+'&nbsp;&nbsp;</span>':'')+scores[id].toFixed(2)+'</td></tr>').join('');
 }
 function renderReveal(m){
   const name=id=>esc(m.names[id]||'?');
@@ -1005,10 +1090,14 @@ function renderReveal(m){
     (m.missed?'<li class="miss"><span>'+esc(m.missed)+'</span><span class="small">not found</span></li>':'');
   const who=m.anon?'<div style="line-height:1.9">'+Object.keys(m.aliases).filter(id=>m.names[id]!==undefined).map(id=>
     '<span style="margin-right:14px"><b style="color:var(--blue)">'+esc(m.aliases[id])+'</b> was '+name(id)+(id===m.chosenId?' <span class="circled">chosen</span>':'')+'</span>').join('')+'</div>':'';
+  const penaltyLine=m.skipPenalty>0
+    ?('<div class="center small">Skip cost: -'+m.skipPenalty.toFixed(2)+' pts ('+m.skipsUsed+' skip'+(m.skipsUsed===1?'':'s')+')</div>')
+    :'';
   $('#revealBody').innerHTML=
     '<div class="card"><h3>The chosen one was '+name(m.chosenId)+'</h3>'+who+'</div>'+
     '<div class="card"><h3>Words</h3><ul class="words">'+list+'</ul>'+
       '<div class="center small">'+m.count+(m.count===1?' word':' words')+' divided by '+m.minutes.toFixed(2)+' min</div>'+
+      penaltyLine+
       '<div class="bigpts">'+m.points.toFixed(2)+' points</div></div>'+
     '<div class="card"><h3>Scores</h3><table class="table">'+rankRows(m.names,m.scores,m.chosenId,m.points)+'</table></div>';
   $('#btnNext').textContent=m.last?'Final results':'Next round';
@@ -1027,6 +1116,10 @@ function renderFinal(m){
 $('#codeIn').addEventListener('input',e=>{
   e.target.value=e.target.value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,5);
 });
+$('#limitSkipsChk').addEventListener('change',e=>{
+  $('#maxSkipsIn').disabled=!e.target.checked||!S.isHost;
+  applySettings();
+});
 $('#btnCreate').onclick=createRoom;
 $('#btnJoin').onclick=joinRoom;
 $('#codeIn').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
@@ -1037,7 +1130,7 @@ $('#btnLeave2').onclick=()=>leaveToMenu();
 $('#btnStart').onclick=startGame;
 $('#btnNext').onclick=nextRound;
 $('#btnAgain').onclick=backToLobby;
-['secSel','roundsIn','extraSel','maxIn','anonChk'].forEach(id=>$('#'+id).addEventListener('change',applySettings));
+['secSel','roundsIn','extraSel','maxSkipsIn','skipCostIn','maxIn','anonChk'].forEach(id=>$('#'+id).addEventListener('change',applySettings));
 $('#roomCode').onclick=()=>{
   try{navigator.clipboard.writeText(S.code);$('#copyNote').textContent='Copied.';setTimeout(()=>{$('#copyNote').textContent='Share this 5-letter code. Click it to copy.';},1500);}catch(e){}
 };

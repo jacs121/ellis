@@ -182,24 +182,28 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
     </div>
     <div class="card">
       <h3>Game settings</h3>
-      <label class="set tip" data-tip="Language for the word bank words and clues/guesses.">
+      <label class="set tip" data-tip="Queries the online word APIs directly in the selected language.">
         <span>Word language</span>
         <select id="langSel">
-          <option value="en">English</option>
-          <option value="es">Español</option>
-          <option value="fr">Français</option>
-          <option value="de">Deutsch</option>
-          <option value="he">עברית</option>
+          <option value="en">English (en)</option>
+          <option value="es">Spanish (es)</option>
+          <option value="fr">French (fr)</option>
+          <option value="de">German (de)</option>
+          <option value="it">Italian (it)</option>
+          <option value="pt">Portuguese (pt)</option>
+          <option value="he">Hebrew (he)</option>
+          <option value="ru">Russian (ru)</option>
+          <option value="ar">Arabic (ar)</option>
         </select>
       </label>
-      <div class="set tip" data-tip="Discovers word categories dynamically from web sources or fetches words for any custom topic in the selected word language. Built-in fallback banks only appear if web categories fail to return.">
+      <div class="set tip" data-tip="Discovers word categories dynamically from web APIs in the selected language or searches a custom topic via API. Built-in fallback banks only appear if the web APIs fail to return.">
         <span>Word bank</span>
         <div class="set-right">
           <select id="bankSel">
             <option value="web:mixed">Web: Mixed</option>
-            <option value="topic">Custom Topic (Datamuse)</option>
+            <option value="topic">Custom Topic (API)</option>
           </select>
-          <input id="customTopicIn" class="hidden" maxlength="40" placeholder="e.g. space, sports" autocomplete="off">
+          <input id="customTopicIn" class="hidden" maxlength="40" placeholder="Enter topic in selected language" autocomplete="off">
         </div>
       </div>
       <label class="set tip" data-tip="How long each round lasts. The chosen player tries to get as many words written as they can before the timer runs out.">
@@ -276,17 +280,27 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
 (()=>{
 'use strict';
 
-/* ---------------- multi-language online word banks & fallbacks ---------------- */
+/* ---------------- dynamic language-native APIs & fallback word banks ---------------- */
 const CORPORA_API_BASE='https://api.github.com/repos/dariusk/corpora/contents/data';
 const CORPORA_RAW_BASE='https://raw.githubusercontent.com/dariusk/corpora/master/data/';
 const DATAMUSE_WORDS_URL='https://api.datamuse.com/words';
 
-const LANG_CONFIG={
-  en:{
-    label:'English',
-    vParam:'',
-    topics:'objects animals food nature places',
-    fallback:[
+const SUPPORTED_LANGS={
+  en:{label:'English (en)',datamuseV:'',wiki:'en'},
+  es:{label:'Spanish (es)',datamuseV:'es',wiki:'es'},
+  fr:{label:'French (fr)',datamuseV:'',wiki:'fr'},
+  de:{label:'German (de)',datamuseV:'',wiki:'de'},
+  it:{label:'Italian (it)',datamuseV:'',wiki:'it'},
+  pt:{label:'Portuguese (pt)',datamuseV:'',wiki:'pt'},
+  he:{label:'Hebrew (he)',datamuseV:'',wiki:'he'},
+  ru:{label:'Russian (ru)',datamuseV:'',wiki:'ru'},
+  ar:{label:'Arabic (ar)',datamuseV:'',wiki:'ar'}
+};
+
+const FALLBACK_WORD_BANKS={
+  mixed:{
+    label:'Mixed (Fallback)',
+    words:[
       'apple','anchor','astronaut','avocado','backpack','balloon','banana','lighthouse','bicycle','blanket',
       'boomerang','broccoli','butterfly','cactus','camera','campfire','candle','canyon','carousel','castle',
       'cheetah','chocolate','compass','cookie','crocodile','crown','diamond','dinosaur','dolphin','dragonfly',
@@ -303,101 +317,56 @@ const LANG_CONFIG={
       'volcano','waffle','waterfall','watermelon','wheelbarrow','windmill','wizard','xylophone','zebra'
     ]
   },
-  es:{
-    label:'Español',
-    vParam:'es',
-    topics:'animales comida objetos naturaleza ciudad',
-    fallback:[
-      'ancla','astronauta','aguacate','mochila','globo','platano','faro','bicicleta','manta',
-      'brocoli','mariposa','cactus','camara','fogata','vela','canon','carrusel','castillo',
-      'guepardo','chocolate','brujula','galleta','cocodrilo','corona','diamante','dinosaurio','delfin','libelula',
-      'eclipse','elefante','ascensor','pluma','fuegos','flamenco','linterna','fuente','jirafa','glaciar',
-      'pez','guitarra','hamaca','erizo','helicoptero','reloj','iceberg','iguana','isla','medusa',
-      'canguro','teclado','cometa','koala','laberinto','farol','lavanda','limonada','leopardo','biblioteca',
-      'rayo','langosta','iman','mango','malvavisco','prado','microscopio','batido','luna','montana',
-      'hongo','narval','collar','pulpo','origami','avestruz','pincel','panqueque','paracaidas','pavo',
-      'pelicano','pinguino','pina','pirata','ornitorrinco','oso','palomitas','puercoespin','piramide',
-      'mapache','arcoiris','cascabel','nevera','rinoceronte','velero','castillo','satelite',
-      'espantapajaros','escorpion','caballito','sombra','esqueleto','rascacielos','copo','nave','espagueti','esfinge',
-      'ardilla','estrella','estetoscopio','fresa','submarino','girasol','tabla','telescopio','tormenta',
-      'tornado','trampolin','tesoro','trombon','tulipan','paraguas','unicornio','aspiradora','vampiro',
-      'volcan','gofre','cascada','sandia','carretilla','molino','mago','xilofono','cebra'
+  animals:{
+    label:'Animals (Fallback)',
+    words:[
+      'albatross','alligator','alpaca','antelope','armadillo','badger','barracuda','bat','beaver','beetle',
+      'beluga','bison','bloodhound','bobcat','buffalo','butterfly','camel','capybara','cardinal','caribou',
+      'caterpillar','chameleon','cheetah','chimpanzee','chinchilla','chipmunk','cobra','condor','cougar','cow',
+      'coyote','crab','crane','crocodile','crow','dalmatian','deer','dingo','dolphin','donkey','dragonfly',
+      'duck','eagle','echidna','eel','elephant','elk','emu','falcon','ferret','flamingo','flea','fox','frog',
+      'gazelle','gecko','gerbil','gibbon','giraffe','goat','goldfish','goose','gorilla','grasshopper','grizzly',
+      'gull','hamster','hawk','hedgehog','heron','hippopotamus','hornet','horse','hummingbird','hyena','iguana',
+      'impala','jackal','jaguar','jay','jellyfish','kangaroo','kingfisher','koala','komodo dragon','ladybug',
+      'lemur','leopard','lion','lizard','llama','lobster','locust','lynx','macaw','mallard','manatee','mantis',
+      'marmot','meerkat','mink','mole','mongoose','monkey','moose','mosquito','moth','mouse','mule','narwhal',
+      'newt','nightingale','ocelot','octopus','opossum','orangutan','oryx','ostrich','otter','owl','ox','oyster',
+      'panda','panther','parrot','partridge','peacock','pelican','penguin','perch','pheasant','pig','pigeon',
+      'platypus','polar bear','porcupine','porpoise','prairie dog','prawn','puffin','puma','python','quail',
+      'rabbit','raccoon','ram','rat','rattlesnake','raven','reindeer','rhinoceros','roadrunner','robin','rooster',
+      'salamander','salmon','sandpiper','sardine','scorpion','sea lion','seahorse','seal','shark','sheep','shrew',
+      'shrimp','skunk','sloth','slug','snail','snake','sparrow','spider','squid','squirrel','starfish','stingray',
+      'stork','swallow','swan','tapir','tarantula','termite','tiger','toad','toucan','trout','turkey','turtle',
+      'viper','vulture','walrus','warbler','wasp','weasel','whale','whippet','wildcat','wolf','wolverine','wombat',
+      'woodpecker','worm','wren','yak','zebra'
     ]
   },
-  fr:{
-    label:'Français',
-    vParam:'fr',
-    topics:'animaux nourriture objets nature ville',
-    fallback:[
-      'ancre','astronaute','avocat','sac','ballon','banane','phare','velo','couverture',
-      'brocoli','papillon','cactus','camera','feu','bougie','canyon','manege','chateau',
-      'guepard','chocolat','boussole','biscuit','crocodile','couronne','diamant','dinosaure','dauphin','libellule',
-      'eclipse','elephant','ascenseur','plume','feux','flamant','lampe','fontaine','girafe','glacier',
-      'poisson','guitare','hamac','herisson','helicoptere','sablier','iceberg','iguane','ile','meduse',
-      'kangourou','clavier','cerf','koala','labyrinthe','lanterne','lavande','citronnade','leopard','bibliotheque',
-      'eclair','homard','aimant','mangue','guimauve','prairie','microscope','milkshake','lune','montagne',
-      'champignon','narval','collier','pieuvre','origami','autruche','pinceau','crepe','parachute','paon',
-      'pelican','pingouin','ananas','pirate','ornithorynque','ours','popcorn','porc','pyramide',
-      'raton','arc','serpent','refrigerateur','rhinoceros','voilier','chateau','satellite',
-      'epouvantail','scorpion','hippocampe','ombre','squelette','gratte','flocon','fusee','spaghetti','sphinx',
-      'ecureuil','etoile','stethoscope','fraise','sous','tournesol','planche','telescope','orage',
-      'tornade','trampoline','tresor','trombone','tulipe','parapluie','licorne','aspirateur','vampire',
-      'volcan','gaufre','cascade','pasteque','brouette','moulin','sorcier','xylophone','zebre'
+  food:{
+    label:'Food & Drinks (Fallback)',
+    words:[
+      'almonds','apple','apricot','artichoke','asparagus','avocado','bacon','bagel','baguette','banana',
+      'barbecue','biscuit','blackberry','blueberry','bread','broccoli','brownie','burrito','butter','cabbage',
+      'cake','cantaloupe','caramel','carrot','cashew','cauliflower','celery','cereal','cheddar','cheeseburger',
+      'cheesecake','cherry','chestnut','chicken','chili','chocolate','churro','cider','cinnamon','clam','coconut',
+      'coffee','cookie','corn','crab','cracker','cranberry','croissant','cucumber','cupcake','curry','custard',
+      'donut','dumpling','eggplant','espresso','falafel','fig','fondue','garlic','gelato','ginger','grape',
+      'grapefruit','guacamole','ham','hazelnut','honey','hummus','ice cream','jam','kebab','ketchup','kiwi',
+      'lasagna','lemon','lemonade','lentil','lettuce','lime','lobster','macaroni','mango','maple syrup',
+      'marshmallow','meatball','melon','milkshake','mint','muffin','mushroom','mustard','nacho','noodle','oatmeal',
+      'olive','omelette','onion','orange','oregano','oyster','pancake','papaya','pasta','pastry','peach','peanut',
+      'pear','peas','pecan','pepper','pepperoni','pickle','pie','pineapple','pistachio','pizza','plum','polenta',
+      'pomegranate','popcorn','potato','pretzel','praline','pudding','pumpkin','quesadilla','radish','raisin',
+      'ramen','raspberry','ravioli','rice','risotto','rosemary','saffron','salad','salsa','sandwich','sardine',
+      'sausage','scone','sesame','sherbet','shrimp','smoothie','sorbet','soup','spaghetti','spinach','steak',
+      'strawberry','sundae','sushi','taco','tamale','tangerine','tapioca','tea','thyme','tofu','tomato',
+      'tortilla','tuna','turkey','turnip','vanilla','venison','waffle','walnut','wasabi','watermelon','yogurt',
+      'zucchini'
     ]
-  },
-  de:{
-    label:'Deutsch',
-    vParam:'de',
-    topics:'tiere essen gegenstande natur stadt',
-    fallback:[
-      'anker','astronaut','avocado','rucksack','ballon','banane','leuchtturm','fahrrad','decke',
-      'brokkoli','schmetterling','kaktus','kamera','lagerfeuer','kerze','schlucht','karussell','schloss',
-      'gepard','schokolade','kompass','keks','krokodil','krone','diamant','dinosaurier','delfin','libelle',
-      'finsternis','elefant','aufzug','feder','feuerwerk','flamingo','taschenlampe','brunnen','giraffe','gletscher',
-      'goldfisch','gitarre','hangematte','igel','hubschrauber','sanduhr','eisberg','leguan','insel','qualle',
-      'kanguru','tastatur','drachen','koala','labyrinth','laterne','lavendel','limonade','leopard','bibliothek',
-      'blitz','hummer','magnet','mango','marshmallow','wiese','mikroskop','milchshake','mondlicht','berg',
-      'pilz','narwal','kette','oktopus','origami','strauss','pinsel','pfannkuchen','fallschirm','pfau',
-      'pelikan','pinguin','ananas','pirat','schnabeltier','eisbar','popcorn','stachelschwein','pyramide',
-      'waschbar','regenbogen','klapperschlange','kuhlschrank','nashorn','segelboot','sandburg','satellit',
-      'vogelscheuche','skorpion','seepferdchen','schatten','skelett','wolkenkratzer','schneeflocke','rakete','spaghetti','sphinx',
-      'eichhornchen','seestern','stethoskop','erdbeere','uboot','sonnenblume','surfbrett','teleskop','gewitter',
-      'tornado','trampolin','schatz','posaune','tulpe','regenschirm','einhorn','staubsauger','vampir',
-      'vulkan','waffel','wasserfall','wassermelone','schubkarre','windmuhle','zauberer','xylophon','zebra'
-    ]
-  },
-  he:{
-    label:'עברית',
-    vParam:'',
-    topics:'חיות אוכל חפצים טבע עיר',
-    fallback:[
-      'תפוח','עוגן','אסטרונאוט','אבוקדו','תרמיל','בלון','בננה','מגדלור','אופניים','שמיכה',
-      'ברוקולי','פרפר','קקטוס','מצלמה','מדורה','נר','קניון','קרוסלה','טירה',
-      'ברדלס','שוקולד','מצפן','עוגייה','תנין','כתר','יהלום','דינוזאור','דולפין','שפירית',
-      'ליקוי','פיל','מעלית','נוצה','זיקוקים','פלמינגו','פנס','מזרקה','גירפה','קרחון',
-      'דג','גיטרה','ערסל','קיפוד','מסוק','שעון','קרחון','איגואנה','אי','מדוזה',
-      'קנגורו','מקלדת','עפיפון','קואלה','מבוך','פנס','לבנדר','לימונדה','נמר','ספרייה',
-      'ברק','לובסטר','מגנט','מנגו','מרשמלו','אחו','מיקרוסקופ','מילקשייק','אור','הר',
-      'פטרייה','חדקרן','שרשרת','תמנון','אוריגמי','יען','מכחול','פנקייק','מצנח','טווס',
-      'שקנאי','פינגווין','אננס','פיראט','פלטיפוס','דוב','פופקורן','דורבן','פירמידה',
-      'דביבון','קשת','עכסן','מקרר','קרנף','מפרשית','טירה','לוויין',
-      'דחליל','עקרב','סוסון','צל','שלד','גורד','פתית','חללית','ספגטי','ספינקס',
-      'סנאי','כוכב','סטטוסקופ','תות','צוללת','חמנייה','גלשן','טלסקופ','סערה',
-      'טורנדו','טרמפולינה','אוצר','טרומבון','צבעוני','מטרייה','חדקרן','שואב','ערפד',
-      'הר','וופל','מפל','אבטיח','מריצה','טחנה','קוסם','קסילופון','זברה'
-    ]
-  }
-};
-
-const FALLBACK_WORD_BANKS={
-  mixed:{
-    label:'Mixed (Fallback)',
-    words:LANG_CONFIG.en.fallback
   }
 };
 
 const CONFIG={
-  timeoutMs:6000
+  timeoutMs:6500
 };
 
 const BROKERS=[
@@ -410,11 +379,11 @@ const BROKERS=[
 const ALIASES=["Fox","Owl","Newt","Moth","Lynx","Crow","Hare","Wren","Seal","Toad","Mole","Bat","Deer","Mink","Lark","Crab"];
 
 function norm(s){
-  return String(s).toLowerCase().normalize('NFD').replace(/[\u0591-\u05C7\u0300-\u036f]/g,'')
+  return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f\u0591-\u05C7\u064B-\u065F]/g,'')
     .replace(/[^\p{L}\p{N}\s]/gu,' ').replace(/\s+/g,' ').trim();
 }
 function cleanBank(lists){
-  const seen=new Set(),out=[],skip=['of','the','and','for','with','set','pair','el','la','los','las','de','del','le','les','un','une','des','der','die','das','und','את','של','על'];
+  const seen=new Set(),out=[],skip=['of','the','and','for','with','set','pair','el','la','los','las','de','del','le','les','un','une','des','der','die','das','und','il','lo','gli','le','os','as','do','da','את','של','על'];
   for(const arr of lists){
     if(!Array.isArray(arr))continue;
     for(const raw of arr){
@@ -512,7 +481,7 @@ const LOCAL_FAIL_MSG='No reply from host in same-browser mode. Make sure both ta
 const NET_FAIL_MSG='No reply from host. Check the 5-letter code and make sure the host has the room open.';
 const log=(...a)=>console.info('[Ellis]',...a);
 
-const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null,seenMids:new Set(),dynamicFolders:[]};
+const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null,seenMids:new Set()};
 let G=null;
 
 function markSeen(mid){
@@ -526,7 +495,7 @@ function markSeen(mid){
   return false;
 }
 
-/* ---------------- multi-language online word banks ---------------- */
+/* ---------------- dynamic language-native API queries ---------------- */
 async function fetchJson(url,ms){
   const ac=new AbortController();const t=setTimeout(()=>ac.abort(),ms);
   try{
@@ -536,33 +505,32 @@ async function fetchJson(url,ms){
   }finally{clearTimeout(t);}
 }
 
-function getLangSpec(lang){
-  return LANG_CONFIG[lang]||LANG_CONFIG.en;
-}
-
-function matchesLangScript(word,lang){
-  if(lang==='he')return /^[\u0590-\u05FF\s]+$/.test(word);
-  return /^[a-z\u00C0-\u024F\s]+$/i.test(word);
-}
-
-function filterByLang(words,lang){
-  const filtered=words.filter(w=>matchesLangScript(w,lang));
-  return filtered.length>=10?filtered:words;
-}
-
-let foldersPromise=null;
-function discoverCorporaFolders(){
-  if(!foldersPromise){
-    foldersPromise=fetchJson(CORPORA_API_BASE,CONFIG.timeoutMs)
-      .then(items=>{
+const foldersByLangCache=new Map();
+function discoverWebCategories(lang){
+  const code=SUPPORTED_LANGS[lang]?lang:'en';
+  if(!foldersByLangCache.has(code)){
+    const p=(async()=>{
+      if(code==='en'){
+        const items=await fetchJson(CORPORA_API_BASE,CONFIG.timeoutMs);
         if(!Array.isArray(items))return[];
         return items
           .filter(it=>it&&it.type==='dir'&&typeof it.name==='string'&&/^[a-z0-9_-]+$/i.test(it.name))
-          .map(it=>it.name);
-      })
-      .catch(()=>[]);
+          .map(it=>({value:'corpora:'+it.name,label:'Web: '+it.name.replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}));
+      }
+      // Query Wikipedia/Wiktionary API in the target language to discover live categories
+      const wikiCode=SUPPORTED_LANGS[code].wiki;
+      const apiUrl='https://'+wikiCode+'.wikipedia.org/w/api.php?action=query&list=allcategories&acmin=30&aclimit=25&format=json&origin=*';
+      const data=await fetchJson(apiUrl,CONFIG.timeoutMs);
+      const cats=(data&&data.query&&Array.isArray(data.query.allcategories))?data.query.allcategories:[];
+      return cats
+        .map(c=>c&&c['*'])
+        .filter(name=>typeof name==='string'&&name.length>=3&&name.length<=32&&!/[:0-9]/.test(name))
+        .slice(0,18)
+        .map(name=>({value:'wikicat:'+code+':'+name,label:'Web: '+name}));
+    })().catch(()=>[]);
+    foldersByLangCache.set(code,p);
   }
-  return foldersPromise;
+  return foldersByLangCache.get(code);
 }
 
 function showFallbackOptionsInSelect(includeAllFallbacks){
@@ -582,55 +550,66 @@ function showFallbackOptionsInSelect(includeAllFallbacks){
   }
 }
 
-async function populateDynamicCategoryOptions(){
+async function populateDynamicCategoryOptions(lang){
   const sel=$('#bankSel');
-  if(!sel||sel.dataset.foldersLoaded)return;
-  sel.dataset.foldersLoaded='1';
-  const folders=await discoverCorporaFolders();
-  if(!folders.length){
+  if(!sel)return;
+  const code=SUPPORTED_LANGS[lang]?lang:'en';
+  if(sel.dataset.loadedLang===code)return;
+  sel.dataset.loadedLang=code;
+
+  // Remove previous dynamic category options (corpora:* or wikicat:*)
+  Array.from(sel.options).forEach(opt=>{
+    if(opt.value.startsWith('corpora:')||opt.value.startsWith('wikicat:')){
+      opt.remove();
+    }
+  });
+
+  const cats=await discoverWebCategories(code);
+  if(!cats.length){
     showFallbackOptionsInSelect(true);
-    if(S.settings&&S.settings.bank&&S.settings.bank.startsWith('web:')){
-      S.settings.bank='fallback:mixed';
+    if(S.settings&&S.settings.bank&&(S.settings.bank.startsWith('corpora:')||S.settings.bank.startsWith('wikicat:'))){
+      S.settings.bank='web:mixed';
     }
     if(S.settings&&S.settings.bank)sel.value=S.settings.bank;
     return;
   }
-  S.dynamicFolders=folders;
+
   const topicOpt=sel.querySelector('option[value="topic"]');
-  for(const folder of folders){
-    const val='corpora:'+folder;
-    if(sel.querySelector('option[value="'+val+'"]'))continue;
+  for(const cat of cats){
+    if(sel.querySelector('option[value="'+cat.value+'"]'))continue;
     const opt=document.createElement('option');
-    opt.value=val;
-    opt.textContent='Web: '+folder.replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    opt.value=cat.value;
+    opt.textContent=cat.label;
     sel.insertBefore(opt,topicOpt||null);
   }
-  if(S.settings&&S.settings.bank)sel.value=S.settings.bank;
+  if(S.settings&&S.settings.bank&&sel.querySelector('option[value="'+S.settings.bank+'"]')){
+    sel.value=S.settings.bank;
+  }
 }
 
 const bankCache=new Map();
-function getFallbackWords(lang){
-  const spec=getLangSpec(lang);
-  return cleanBank([spec.fallback]);
+function getFallbackWords(bankKey){
+  if(FALLBACK_WORD_BANKS[bankKey])return cleanBank([FALLBACK_WORD_BANKS[bankKey].words]);
+  return cleanBank([FALLBACK_WORD_BANKS.mixed.words]);
 }
 
-async function fetchDatamuseLangWords(queryTopics,lang){
-  const spec=getLangSpec(lang);
-  const topics=norm(queryTopics||spec.topics).split(' ').filter(Boolean).slice(0,5).join(',');
-  if(!topics)return[];
-  const params=new URLSearchParams({topics,max:'250'});
+async function fetchDatamuseWords(queryParamName,queryValue,lang){
+  const spec=SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en;
+  const q=norm(queryValue);
+  if(!q)return[];
+  const params=new URLSearchParams({[queryParamName]:q,max:'250'});
   if(lang==='en')params.set('md','p');
-  if(spec.vParam)params.set('v',spec.vParam);
+  if(spec.datamuseV)params.set('v',spec.datamuseV);
   const data=await fetchJson(DATAMUSE_WORDS_URL+'?'+params.toString(),CONFIG.timeoutMs);
   if(!Array.isArray(data))return[];
   const nouns=lang==='en'
     ?data.filter(d=>d&&Array.isArray(d.tags)&&d.tags.includes('n')).map(d=>d.word)
     :data.map(d=>d&&d.word);
   const pool=nouns.length>=20?nouns:data.map(d=>d&&d.word);
-  return filterByLang(cleanBank([pool]),lang);
+  return cleanBank([pool]);
 }
 
-async function fetchCorporaFolderWords(folder,lang){
+async function fetchCorporaFolderWords(folder){
   const entries=await fetchJson(CORPORA_API_BASE+'/'+encodeURIComponent(folder),CONFIG.timeoutMs);
   if(!Array.isArray(entries))return[];
   const jsonFiles=entries
@@ -644,56 +623,110 @@ async function fetchCorporaFolderWords(folder,lang){
         .catch(()=>[])
     )
   );
-  return filterByLang(cleanBank(rawArrays),lang);
+  return cleanBank(rawArrays);
+}
+
+async function fetchWikiCategoryWords(lang,categoryTitle){
+  const wikiCode=(SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en).wiki;
+  const url='https://'+wikiCode+'.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:'+encodeURIComponent(categoryTitle)+'&cmnamespace=0&cmlimit=200&format=json&origin=*';
+  const data=await fetchJson(url,CONFIG.timeoutMs);
+  const members=(data&&data.query&&Array.isArray(data.query.categorymembers))?data.query.categorymembers:[];
+  return cleanBank([members.map(m=>m&&m.title)]);
+}
+
+async function fetchWikiRandomWords(lang){
+  const wikiCode=(SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en).wiki;
+  const urls=[
+    'https://'+wikiCode+'.wiktionary.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=150&format=json&origin=*',
+    'https://'+wikiCode+'.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=150&format=json&origin=*'
+  ];
+  const results=await Promise.all(
+    urls.map(u=>fetchJson(u,CONFIG.timeoutMs)
+      .then(d=>(d&&d.query&&Array.isArray(d.query.random))?d.query.random.map(r=>r&&r.title):[])
+      .catch(()=>[]))
+  );
+  return cleanBank(results);
+}
+
+async function fetchWikiSearchWords(lang,topic){
+  const wikiCode=(SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en).wiki;
+  const url='https://'+wikiCode+'.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(topic)+'&srnamespace=0&srlimit=100&format=json&origin=*';
+  const data=await fetchJson(url,CONFIG.timeoutMs);
+  const hits=(data&&data.query&&Array.isArray(data.query.search))?data.query.search:[];
+  return cleanBank([hits.map(h=>h&&h.title)]);
 }
 
 async function fetchWebMixedWords(lang){
-  const dmWords=await fetchDatamuseLangWords(getLangSpec(lang).topics,lang).catch(()=>[]);
+  const spec=SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en;
   if(lang==='en'){
-    const folders=await discoverCorporaFolders();
-    const chosen=shuffle(folders.slice()).slice(0,3);
+    const cats=await discoverWebCategories('en');
+    const chosen=shuffle(cats.slice()).slice(0,3);
     const folderLists=await Promise.all(
-      chosen.map(folder=>fetchCorporaFolderWords(folder,'en').catch(()=>[]))
+      chosen.map(c=>fetchCorporaFolderWords(c.value.slice('corpora:'.length)).catch(()=>[]))
     );
-    return cleanBank([...folderLists,dmWords]);
+    const topicList=await fetchDatamuseWords('topics','objects,animals,food,nature','en').catch(()=>[]);
+    return cleanBank([...folderLists,topicList]);
   }
-  return cleanBank([dmWords]);
+  const tasks=[fetchWikiRandomWords(lang)];
+  if(spec.datamuseV){
+    tasks.push(fetchDatamuseWords('topics','animales,comida,objetos,naturaleza',lang).catch(()=>[]));
+  }
+  const lists=await Promise.all(tasks);
+  return cleanBank(lists);
 }
 
 function getBank(bankKey,customTopic,lang){
-  const activeLang=(lang&&(LANG_CONFIG[lang]))?lang:'en';
+  const activeLang=SUPPORTED_LANGS[lang]?lang:'en';
   const key=bankKey||'web:mixed';
   const cacheKey=activeLang+'|'+key+'|'+(key==='topic'?norm(customTopic||''):'');
   if(!bankCache.has(cacheKey)){
     const p=(async()=>{
       if(key==='topic'){
-        const words=await fetchDatamuseLangWords(customTopic||getLangSpec(activeLang).topics,activeLang);
+        const topic=(customTopic||'').trim();
+        let words=[];
+        if(activeLang==='en'||(SUPPORTED_LANGS[activeLang]&&SUPPORTED_LANGS[activeLang].datamuseV)){
+          words=await fetchDatamuseWords('ml',topic,activeLang).catch(()=>[]);
+        }
+        if(words.length<12&&topic){
+          const wikiWords=await fetchWikiSearchWords(activeLang,topic).catch(()=>[]);
+          words=cleanBank([words,wikiWords]);
+        }
         if(words.length>=12)return words;
         showFallbackOptionsInSelect(true);
-        return getFallbackWords(activeLang);
+        return getFallbackWords('mixed');
       }
       if(key==='web:mixed'){
         const words=await fetchWebMixedWords(activeLang);
         if(words.length>=12)return words;
         showFallbackOptionsInSelect(true);
-        return getFallbackWords(activeLang);
+        return getFallbackWords('mixed');
       }
       if(key.startsWith('corpora:')){
         const folder=key.slice('corpora:'.length);
-        const words=await fetchCorporaFolderWords(folder,activeLang);
+        const words=await fetchCorporaFolderWords(folder);
         if(words.length>=12)return words;
-        const dmFallback=await fetchDatamuseLangWords(folder.replace(/[_-]+/g,' '),activeLang).catch(()=>[]);
-        if(dmFallback.length>=12)return dmFallback;
         showFallbackOptionsInSelect(true);
-        return getFallbackWords(activeLang);
+        return getFallbackWords('mixed');
+      }
+      if(key.startsWith('wikicat:')){
+        const rest=key.slice('wikicat:'.length);
+        const sep=rest.indexOf(':');
+        const catLang=sep>0?rest.slice(0,sep):activeLang;
+        const catTitle=sep>0?rest.slice(sep+1):rest;
+        const words=await fetchWikiCategoryWords(catLang,catTitle);
+        if(words.length>=12)return words;
+        const mixedFallback=await fetchWebMixedWords(catLang).catch(()=>[]);
+        if(mixedFallback.length>=12)return mixedFallback;
+        showFallbackOptionsInSelect(true);
+        return getFallbackWords('mixed');
       }
       if(key.startsWith('fallback:')){
-        return getFallbackWords(activeLang);
+        return getFallbackWords(key.slice('fallback:'.length));
       }
-      return getFallbackWords(activeLang);
+      return getFallbackWords('mixed');
     })().catch(()=>{
       showFallbackOptionsInSelect(true);
-      return getFallbackWords(activeLang);
+      return getFallbackWords('mixed');
     });
     bankCache.set(cacheKey,p);
   }
@@ -706,12 +739,11 @@ async function prepare(g){
   const want=S.settings.extra;
   if(want>0){
     try{
-      const spec=getLangSpec(S.settings.lang);
+      const spec=SUPPORTED_LANGS[S.settings.lang]||SUPPORTED_LANGS.en;
       const params=new URLSearchParams({ml:word,max:'60'});
-      if(spec.vParam)params.set('v',spec.vParam);
+      if(spec.datamuseV)params.set('v',spec.datamuseV);
       const arr=await fetchJson(DATAMUSE_WORDS_URL+'?'+params.toString(),CONFIG.timeoutMs);
-      const filtered=filterByLang(pickRelated(Array.isArray(arr)?arr:[],word,want*3),S.settings.lang);
-      blocked=filtered.slice(0,want);
+      blocked=pickRelated(Array.isArray(arr)?arr:[],word,want);
     }catch(e){g.relatedFailed=true;}
   }
   return {word,blocked};
@@ -1045,7 +1077,7 @@ function createRoom(){
     onReady:()=>{
       setErr('');
       broadcastLobby();
-      populateDynamicCategoryOptions().then(()=>broadcastLobby()).catch(()=>{});
+      populateDynamicCategoryOptions(S.settings.lang).then(()=>broadcastLobby()).catch(()=>{});
       getBank(S.settings.bank,S.settings.customTopic,S.settings.lang).catch(()=>{});
     },
     onMsg:hostHandle,
@@ -1154,9 +1186,14 @@ function applySettings(){
   const s=S.settings;
   const prevLang=s.lang, prevBank=s.bank, prevTopic=s.customTopic;
   const langVal=$('#langSel').value;
-  s.lang=LANG_CONFIG[langVal]?langVal:'en';
-  const selVal=$('#bankSel').value;
-  s.bank=(selVal==='web:mixed'||selVal==='topic'||selVal.startsWith('corpora:')||selVal.startsWith('fallback:'))?selVal:'web:mixed';
+  s.lang=SUPPORTED_LANGS[langVal]?langVal:'en';
+  if(s.lang!==prevLang){
+    s.bank='web:mixed';
+    populateDynamicCategoryOptions(s.lang).then(()=>broadcastLobby()).catch(()=>{});
+  }else{
+    const selVal=$('#bankSel').value;
+    s.bank=(selVal==='web:mixed'||selVal==='topic'||selVal.startsWith('corpora:')||selVal.startsWith('wikicat:')||selVal.startsWith('fallback:'))?selVal:'web:mixed';
+  }
   s.customTopic=$('#customTopicIn').value.trim().slice(0,40);
   s.seconds=+$('#secSel').value||90;
   s.rounds=clamp(parseInt($('#roundsIn').value,10)||1,1,20);
@@ -1176,13 +1213,14 @@ async function startGame(){
   if(!G||G.phase!=='lobby'||S.players.length<3)return;
   G.phase='starting';
   const s=S.settings;
-  const langLabel=getLangSpec(s.lang).label;
+  const langLabel=(SUPPORTED_LANGS[s.lang]||SUPPORTED_LANGS.en).label;
   const bankLabel=s.bank==='topic'
-    ?('topic "'+(s.customTopic||getLangSpec(s.lang).topics)+'"')
+    ?('topic "'+(s.customTopic||'mixed')+'"')
     :(s.bank==='web:mixed'?'Web: Mixed'
     :(s.bank.startsWith('corpora:')?('Web: '+s.bank.slice('corpora:'.length))
-    :(s.bank.startsWith('fallback:')?((FALLBACK_WORD_BANKS[s.bank.slice('fallback:'.length)]||FALLBACK_WORD_BANKS.mixed).label):'Web: Mixed')));
-  broadcastLobby('Fetching '+bankLabel+' ('+langLabel+') words...');
+    :(s.bank.startsWith('wikicat:')?('Web: '+s.bank.split(':').slice(2).join(':'))
+    :(s.bank.startsWith('fallback:')?((FALLBACK_WORD_BANKS[s.bank.slice('fallback:'.length)]||FALLBACK_WORD_BANKS.mixed).label):'Web: Mixed'))));
+  broadcastLobby('Fetching '+bankLabel+' ['+langLabel+'] words...');
   const g=G;
   try{
     g.bank=await getBank(s.bank,s.customTopic,s.lang);
@@ -1315,10 +1353,10 @@ function renderLobby(notice,busy){
     '<li><span>'+esc(p.name)+(p.id==='host'?'<span class="tagbit">host</span>':'')+(p.id===S.id?'<span class="tagbit">you</span>':'')+'</span></li>').join('');
   $('#langSel').value=s.lang||'en';
   const sel=$('#bankSel');
-  if(s.bank&&s.bank.startsWith('corpora:')&&!sel.querySelector('option[value="'+s.bank+'"]')){
+  if(s.bank&&(s.bank.startsWith('corpora:')||s.bank.startsWith('wikicat:'))&&!sel.querySelector('option[value="'+s.bank+'"]')){
     const opt=document.createElement('option');
     opt.value=s.bank;
-    opt.textContent='Web: '+s.bank.slice('corpora:'.length);
+    opt.textContent='Web: '+(s.bank.startsWith('corpora:')?s.bank.slice('corpora:'.length):s.bank.split(':').slice(2).join(':'));
     sel.insertBefore(opt,sel.querySelector('option[value="topic"]')||null);
   }
   if(s.bank&&s.bank.startsWith('fallback:')){

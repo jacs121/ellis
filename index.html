@@ -72,6 +72,7 @@ input[type=checkbox]{accent-color:var(--ink);width:20px;height:20px;cursor:point
 #codeIn{text-transform:uppercase;letter-spacing:6px;width:162px;text-align:center;font-size:26px}
 select{cursor:pointer}
 #how ol{margin:0;padding-left:24px;display:flex;flex-direction:column;gap:8px}
+[dir="rtl"] #how ol{padding-left:0;padding-right:24px}
 
 /* hover explanations */
 .tip{position:relative;cursor:help}
@@ -82,6 +83,7 @@ select{cursor:pointer}
   border:2px solid var(--ink);border-radius:var(--wob);box-shadow:3px 3px 0 rgba(47,47,51,.18);
   opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .15s,transform .15s;
 }
+[dir="rtl"] .tip::after{left:auto;right:0;text-align:right}
 .tip:hover::after,.tip:focus-within::after{opacity:1;transform:none}
 
 .set{flex-direction:row;justify-content:space-between;align-items:center;gap:16px;color:var(--ink);font-size:20px;padding:6px 0;border-bottom:1.5px dashed #c8c4b6}
@@ -93,6 +95,7 @@ select{cursor:pointer}
 ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
 #plist li{display:flex;justify-content:space-between;border-bottom:1.5px dashed #c8c4b6;padding:2px 0}
 .tagbit{color:var(--blue);font-size:16px;margin-left:8px}
+[dir="rtl"] .tagbit{margin-left:0;margin-right:8px}
 
 .topbar{display:flex;justify-content:space-between;color:var(--soft);font-size:18px;margin-bottom:4px}
 .timer{text-align:center;margin-bottom:12px}
@@ -109,6 +112,7 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
 #chatLog{height:300px;overflow-y:auto;padding:12px 18px}
 #chatLog p{margin:0 0 6px;word-wrap:break-word}
 #chatLog b{color:var(--blue);margin-right:6px}
+[dir="rtl"] #chatLog b{margin-right:0;margin-left:6px}
 #chatLog .me b{color:var(--ink)}
 #chatLog .hit{background:linear-gradient(transparent 50%,var(--hi) 50%)}
 #chatLog .note{color:var(--red);font-style:italic}
@@ -122,6 +126,7 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
 .table{width:100%;border-collapse:collapse}
 .table td{padding:3px 4px;border-bottom:1.5px dashed #c8c4b6}
 .table td:last-child{text-align:right}
+[dir="rtl"] .table td:last-child{text-align:left}
 .circled{outline:2.5px solid var(--red);outline-offset:3px;border-radius:var(--wob);padding:0 8px}
 @media (max-width:520px){body{font-size:18px}.code{font-size:64px}}
 </style>
@@ -141,15 +146,15 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
   <section id="menu" class="screen">
     <h1>Ellis</h1>
     <svg class="squiggle" viewBox="0 0 300 20" aria-hidden="true"><path d="M5 12 C 30 2, 50 20, 80 10 S 130 4, 160 12 S 220 18, 295 7" fill="none" stroke="#b5483f" stroke-width="3" stroke-linecap="round"/></svg>
-    <p class="tag">say it without saying it</p>
+    <p class="tag" id="tagTxt">say it without saying it</p>
     <div class="card stack">
-      <label>Your name<input id="nameIn" maxlength="14" placeholder="e.g. Maya" autocomplete="off"></label>
+      <label id="nameLbl">Your name<input id="nameIn" maxlength="14" placeholder="e.g. Maya" autocomplete="off"></label>
       <button id="btnCreate" class="primary">Create a room</button>
-      <div class="or">or join a friend</div>
+      <div class="or" id="orTxt">or join a friend</div>
       <div class="row"><input id="codeIn" maxlength="5" placeholder="5-LTR" autocomplete="off" spellcheck="false"><button id="btnJoin">Join</button></div>
 
-      <label class="check tip" data-tip="Uses same-browser tabs only (works offline). Untick to connect across phones, laptops, and friends on your Wi-Fi or online.">
-        <input type="checkbox" id="localMode"> Same-browser offline mode (tabs only)
+      <label class="check tip" id="localModeLbl" data-tip="Uses same-browser tabs only (works offline). Untick to connect across phones, laptops, and friends on your Wi-Fi or online.">
+        <input type="checkbox" id="localMode"> <span id="localModeTxt">Same-browser offline mode (tabs only)</span>
       </label>
 
       <p id="menuErr" class="err"></p>
@@ -158,7 +163,7 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
       <button id="btnHow" class="link">How to play</button>
     </div>
     <div id="how" class="card hidden">
-      <ol>
+      <ol id="howList">
         <li>One player is secretly chosen each round and sees a word or two.</li>
         <li>They write clues in the chat to get the others to write that word. Saying the word, any part of it, or any extra blocked word is not allowed.</li>
         <li>Every time someone writes the word, the chosen player gets a new one.</li>
@@ -169,21 +174,31 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
   </section>
 
   <section id="lobby" class="screen hidden">
-    <h2>Lobby</h2>
+    <h2 id="lobbyTitle">Lobby</h2>
     <div class="card center">
-      <div class="small">5-letter room code</div>
+      <div class="small" id="codeLbl">5-letter room code</div>
       <div id="roomCode" class="code" title="Click to copy"></div>
       <div class="small" id="copyNote">Share this 5-letter code. Click it to copy.</div>
       <div class="small" id="netModeNote" style="color:var(--blue);margin-top:4px"></div>
     </div>
     <div class="card">
-      <h3>Players <span id="pCount" class="small"></span></h3>
+      <h3><span id="playersTitle">Players</span> <span id="pCount" class="small"></span></h3>
       <ul id="plist"></ul>
     </div>
     <div class="card">
-      <h3>Game settings</h3>
-      <div class="set tip" data-tip="Dynamically loads categories from GitHub Corpora or fetches words for any custom topic from Datamuse, with built-in fallback banks if offline.">
-        <span>Word bank</span>
+      <h3 id="settingsTitle">Game settings</h3>
+      <label class="set tip" id="langSet" data-tip="Changes the interface language as well as the language used for word banks, blocked words, and chat guesses.">
+        <span id="langLbl">Language</span>
+        <select id="langSel">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="he">עברית</option>
+        </select>
+      </label>
+      <div class="set tip" id="bankSet" data-tip="Dynamically loads categories from GitHub Corpora or fetches words for any custom topic from Datamuse in the chosen language, with fallback banks if offline.">
+        <span id="bankLbl">Word bank</span>
         <div class="set-right">
           <select id="bankSel">
             <option value="mixed">Mixed (Fallback)</option>
@@ -197,8 +212,8 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
           <input id="customTopicIn" class="hidden" maxlength="40" placeholder="e.g. space, sports" autocomplete="off">
         </div>
       </div>
-      <label class="set tip" data-tip="How long each round lasts. The chosen player tries to get as many words written as they can before the timer runs out.">
-        <span>Round length</span>
+      <label class="set tip" id="secSet" data-tip="How long each round lasts. The chosen player tries to get as many words written as they can before the timer runs out.">
+        <span id="secLbl">Round length</span>
         <select id="secSel">
           <option value="45">45 seconds</option>
           <option value="60">60 seconds</option>
@@ -207,34 +222,34 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
           <option value="180">3 minutes</option>
         </select>
       </label>
-      <label class="set tip" data-tip="How many rounds are played in total (1 to 20). Players take turns being the chosen one, and everyone gets a turn before anyone gets a second one.">
-        <span>Rounds</span>
+      <label class="set tip" id="roundsSet" data-tip="How many rounds are played in total (1 to 20). Players take turns being the chosen one, and everyone gets a turn before anyone gets a second one.">
+        <span id="roundsLbl">Rounds</span>
         <input id="roundsIn" type="number" min="1" max="20" value="3">
       </label>
-      <label class="set tip" data-tip="How many extra words the chosen player may not say, on top of the word itself. They are picked automatically from words related to the chosen word, and the chosen player can see them. Use 0 to block only the word itself.">
-        <span>Extra blocked words</span>
+      <label class="set tip" id="extraSet" data-tip="How many extra words the chosen player may not say, on top of the word itself. They are picked automatically from words related to the chosen word, and the chosen player can see them. Use 0 to block only the word itself.">
+        <span id="extraLbl">Extra blocked words</span>
         <select id="extraSel">
           <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
           <option value="4">4</option><option value="5">5</option><option value="6">6</option>
         </select>
       </label>
-      <div class="set tip" data-tip="How many times a chosen player can skip a word in a round (0 = no skips allowed). Uncheck 'Limit skips' to allow infinite skips. Once skips run out, the skip button turns into a Give up button.">
-        <span>Max skips</span>
+      <div class="set tip" id="skipsSet" data-tip="How many times a chosen player can skip a word in a round (0 = no skips allowed). Uncheck 'Limit skips' to allow infinite skips. Once skips run out, the skip button turns into a Give up button.">
+        <span id="maxSkipsLbl">Max skips</span>
         <div class="set-right">
           <input id="maxSkipsIn" type="number" min="0" max="50" value="3">
-          <label class="inline-check"><input id="limitSkipsChk" type="checkbox" checked> Limit skips</label>
+          <label class="inline-check"><input id="limitSkipsChk" type="checkbox" checked> <span id="limitSkipsTxt">Limit skips</span></label>
         </div>
       </div>
-      <label class="set tip" data-tip="Points deducted from the chosen player's score each time they skip a word (0 for no cost).">
-        <span>Skip cost</span>
+      <label class="set tip" id="skipCostSet" data-tip="Points deducted from the chosen player's score each time they skip a word (0 for no cost).">
+        <span id="skipCostLbl">Skip cost</span>
         <input id="skipCostIn" type="number" min="0" max="50" step="0.25" value="0">
       </label>
-      <label class="set tip" data-tip="How many people can join this room, from 3 to 16. It cannot be set lower than the number of players already in the room.">
-        <span>Players (max)</span>
+      <label class="set tip" id="maxSet" data-tip="How many people can join this room, from 3 to 16. It cannot be set lower than the number of players already in the room.">
+        <span id="maxLbl">Players (max)</span>
         <input id="maxIn" type="number" min="3" max="16" value="8">
       </label>
-      <label class="set tip" data-tip="On: during a round everyone appears under a random animal name, so nobody knows who is who until the reveal. Off: real names are shown in the chat during the round.">
-        <span>Anonymous mode</span>
+      <label class="set tip" id="anonSet" data-tip="On: during a round everyone appears under a random animal name, so nobody knows who is who until the reveal. Off: real names are shown in the chat during the round.">
+        <span id="anonLbl">Anonymous mode</span>
         <input id="anonChk" type="checkbox" checked>
       </label>
     </div>
@@ -248,18 +263,18 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
     <div class="timer" id="timerBox"><div id="clock">0:00</div><div class="bar"><i id="barFill"></i></div></div>
     <div id="role" class="card center"></div>
     <div class="chatbox"><div id="chatLog"></div></div>
-    <form id="chatForm" class="row"><input id="chatIn" maxlength="140" autocomplete="off"><button class="primary">Send</button></form>
+    <form id="chatForm" class="row"><input id="chatIn" maxlength="140" autocomplete="off"><button id="btnSend" class="primary">Send</button></form>
   </section>
 
   <section id="reveal" class="screen hidden">
-    <h2>Time is up</h2>
+    <h2 id="revealTitle">Time is up</h2>
     <div id="revealBody"></div>
     <div class="row"><button id="btnNext" class="primary">Next round</button></div>
     <p id="revealWait" class="small center hidden">Waiting for the host...</p>
   </section>
 
   <section id="final" class="screen hidden">
-    <h2>Final scores</h2>
+    <h2 id="finalTitle">Final scores</h2>
     <div id="finalBody"></div>
     <div class="row"><button id="btnAgain" class="primary">Back to lobby</button><button id="btnLeave2">Leave</button></div>
     <p id="finalWait" class="small center hidden">Waiting for the host...</p>
@@ -271,138 +286,413 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
 (()=>{
 'use strict';
 
+/* ---------------- translations & language metadata ---------------- */
+const LANG_META={
+  en:{label:'English',dir:'ltr',aliasPool:["Fox","Owl","Newt","Moth","Lynx","Crow","Hare","Wren","Seal","Toad","Mole","Bat","Deer","Mink","Lark","Crab"],topicSeed:'objects animals food nature'},
+  es:{label:'Español',dir:'ltr',aliasPool:["Zorro","Búho","Tritón","Polilla","Lince","Cuervo","Liebre","Chochín","Foca","Sapo","Topo","Murciélago","Ciervo","Visón","Alondra","Cangrejo"],topicSeed:'objetos animales comida naturaleza'},
+  fr:{label:'Français',dir:'ltr',aliasPool:["Renard","Hibou","Triton","Papillon","Lynx","Corbeau","Lièvre","Troglodyte","Phoque","Crapaud","Taupe","Chauve-souris","Cerf","Vison","Alouette","Crabe"],topicSeed:'objets animaux nourriture nature'},
+  de:{label:'Deutsch',dir:'ltr',aliasPool:["Fuchs","Eule","Molch","Motte","Luchs","Rabe","Hase","Zaunkönig","Robbe","Kröte","Maulwurf","Fledermaus","Hirsch","Nerz","Lerche","Krabbe"],topicSeed:'gegenstände tiere essen natur'},
+  he:{label:'עברית',dir:'rtl',aliasPool:["שועל","ינשוף","סלמנדרה","עש","לינקס","עורב","ארנבת","גדרון","כלב ים","קרפדה","חפרפרת","עטלף","צבי","מינק","עפרוני","סרטן"],topicSeed:'חפצים בעלי חיים אוכל טבע'}
+};
+
+const I18N={
+  en:{
+    tag:'say it without saying it',
+    yourName:'Your name',namePlaceholder:'e.g. Maya',
+    createRoom:'Create a room',orJoin:'or join a friend',codePlaceholder:'5-LTR',join:'Join',
+    localMode:'Same-browser offline mode (tabs only)',
+    localModeTip:'Uses same-browser tabs only (works offline). Untick to connect across phones, laptops, and friends on your Wi-Fi or online.',
+    howToPlay:'How to play',
+    howSteps:[
+      'One player is secretly chosen each round and sees a word or two.',
+      'They write clues in the chat to get the others to write that word. Saying the word, any part of it, or any extra blocked word is not allowed.',
+      'Every time someone writes the word, the chosen player gets a new one.',
+      'When time runs out, everyone is revealed and the chosen player gets points for the words found.',
+      'Players take turns being the chosen one over all the rounds. Highest total wins.'
+    ],
+    lobby:'Lobby',roomCodeLbl:'5-letter room code',
+    copyNote:'Share this 5-letter code. Click it to copy.',copied:'Copied.',
+    localModeNote:'Same-browser offline mode',netModeNote:'Multiplayer room (LAN & Online)',
+    players:'Players',settings:'Game settings',
+    language:'Language',languageTip:'Changes the interface language as well as the language used for word banks, blocked words, and chat guesses.',
+    wordBank:'Word bank',wordBankTip:'Dynamically loads categories from GitHub Corpora or fetches words for any custom topic from Datamuse in the chosen language, with fallback banks if offline.',
+    customTopic:'Custom Topic (Datamuse)',customTopicPh:'e.g. space, sports',
+    roundLen:'Round length',roundLenTip:'How long each round lasts. The chosen player tries to get as many words written as they can before the timer runs out.',
+    sec45:'45 seconds',sec60:'60 seconds',sec90:'90 seconds',sec120:'2 minutes',sec180:'3 minutes',
+    rounds:'Rounds',roundsTip:'How many rounds are played in total (1 to 20). Players take turns being the chosen one, and everyone gets a turn before anyone gets a second one.',
+    extraBlocked:'Extra blocked words',extraBlockedTip:'How many extra words the chosen player may not say, on top of the word itself. They are picked automatically from words related to the chosen word, and the chosen player can see them. Use 0 to block only the word itself.',
+    maxSkips:'Max skips',maxSkipsTip:"How many times a chosen player can skip a word in a round (0 = no skips allowed). Uncheck 'Limit skips' to allow infinite skips. Once skips run out, the skip button turns into a Give up button.",
+    limitSkips:'Limit skips',
+    skipCost:'Skip cost',skipCostTip:"Points deducted from the chosen player's score each time they skip a word (0 for no cost).",
+    maxPlayers:'Players (max)',maxPlayersTip:'How many people can join this room, from 3 to 16. It cannot be set lower than the number of players already in the room.',
+    anonMode:'Anonymous mode',anonModeTip:'On: during a round everyone appears under a random animal name, so nobody knows who is who until the reveal. Off: real names are shown in the chat during the round.',
+    startGame:'Start game',leave:'Leave',waitHostStart:'Waiting for the host to start...',
+    need3Start:'You need at least 3 players to start.',
+    leftNeed3:'Not enough players left (at least 3 required), so the game went back to the lobby.',
+    roundOf:(n,total)=>`Round ${n} of ${total}`,
+    youAppearAs:alias=>`You appear as ${alias}`,
+    namesVisible:'Names are visible this round',
+    chosenIntro:'You are the chosen one. Your word:',
+    alsoBlocked:list=>`Also blocked: ${list.join(', ')}`,
+    clueRule:'Get the others to write it. Never say it, or any part of it.',
+    found:count=>`Found: <b>${count}</b>`,
+    skipLeft:(rem,cost)=>`Skip word (${rem} left${cost})`,
+    skipInf:cost=>`Skip word (∞${cost})`,
+    giveUp:'Give up round',
+    cluePh:'Write a clue...',
+    guesserIntro:'One of you holds a secret word.',
+    guesserSub:'Work out the word and write it in the chat.',
+    guessPh:'Chat or guess...',
+    send:'Send',gotIt:'got it!',youTag:' (you)',hostTag:'host',selfTag:'you',
+    rejected:'That gives away part of the word or a blocked word. Describe it another way.',
+    relatedFail:'Related words could not be loaded, so only the word itself is blocked.',
+    timeIsUp:'Time is up',
+    chosenWas:who=>`The chosen one was ${who}`,
+    wasAlias:(alias,who,isChosen)=>`<span style="margin-right:14px"><b style="color:var(--blue)">${alias}</b> was ${who}${isChosen?' <span class="circled">chosen</span>':''}</span>`,
+    wordsTitle:'Words',writtenBy:who=>`written by ${who}`,notFound:'not found',
+    wordsDivMin:(c,m)=>`${c} ${c===1?'word':'words'} divided by ${m} min`,
+    skipCostSummary:(pen,skips)=>`Skip cost: -${pen} pts (${skips} ${skips===1?'skip':'skips'})`,
+    pointsFmt:pts=>`${pts} points`,
+    scoresTitle:'Scores',nextRound:'Next round',finalResults:'Final results',
+    waitHost:'Waiting for the host...',finalScoresTitle:'Final scores',backToLobby:'Back to lobby',
+    enterNameErr:'Please enter a name first.',
+    enterCodeErr:'Enter the 5-letter room code.',
+    hostClosed:'The host closed the room.',
+    alreadyStarted:'That game has already started.',
+    roomFull:'That room is full.',
+    loadingBank:label=>`Fetching ${label} words...`,
+    loadBankErr:'Could not load words. Press Start again.',
+    webPrefix:'Web: ',
+    fbMixed:'Mixed (Fallback)',fbAnimals:'Animals (Fallback)',fbFood:'Food & Drinks (Fallback)',
+    fbObjects:'Everyday Objects (Fallback)',fbNature:'Nature & Places (Fallback)',fbPop:'Movies & Pop (Fallback)'
+  },
+  es:{
+    tag:'dilo sin decirlo',
+    yourName:'Tu nombre',namePlaceholder:'p. ej. Maya',
+    createRoom:'Crear sala',orJoin:'o únete a un amigo',codePlaceholder:'5-LET',join:'Unirse',
+    localMode:'Modo sin conexión en el mismo navegador (solo pestañas)',
+    localModeTip:'Usa solo pestañas del mismo navegador (sin conexión). Desmarca para conectar en teléfonos, ordenadores o amigos por internet.',
+    howToPlay:'Cómo jugar',
+    howSteps:[
+      'Cada ronda se elige en secreto a un jugador y ve una palabra o dos.',
+      'Escribe pistas en el chat para que los demás escriban esa palabra. Decir la palabra, parte de ella o una palabra bloqueada extra no está permitido.',
+      'Cada vez que alguien acierta la palabra, el jugador elegido recibe otra.',
+      'Cuando se acaba el tiempo, se revela a todos y el jugador elegido gana puntos por las palabras acertadas.',
+      'Los jugadores se turnan para ser el elegido en todas las rondas. Gana la puntuación más alta.'
+    ],
+    lobby:'Sala',roomCodeLbl:'Código de sala de 5 letras',
+    copyNote:'Comparte este código de 5 letras. Haz clic para copiar.',copied:'Copiado.',
+    localModeNote:'Modo sin conexión en el mismo navegador',netModeNote:'Sala multijugador (LAN y en línea)',
+    players:'Jugadores',settings:'Ajustes de partida',
+    language:'Idioma',languageTip:'Cambia el idioma de la interfaz y también el de los bancos de palabras, palabras bloqueadas y respuestas en el chat.',
+    wordBank:'Banco de palabras',wordBankTip:'Carga categorías dinámicamente desde GitHub Corpora o busca palabras para cualquier tema en Datamuse en el idioma elegido, con respaldo sin conexión.',
+    customTopic:'Tema personalizado (Datamuse)',customTopicPh:'p. ej. espacio, deportes',
+    roundLen:'Duración de ronda',roundLenTip:'Cuánto dura cada ronda. El jugador elegido intenta que adivinen tantas palabras como pueda antes de que acabe el tiempo.',
+    sec45:'45 segundos',sec60:'60 segundos',sec90:'90 segundos',sec120:'2 minutos',sec180:'3 minutos',
+    rounds:'Rondas',roundsTip:'Cuántas rondas se juegan en total (1 a 20). Todos tienen su turno antes de que alguien repita.',
+    extraBlocked:'Palabras bloqueadas extra',extraBlockedTip:'Cuántas palabras extra no puede decir el jugador elegido además de la palabra secreta. Se eligen automáticamente entre palabras relacionadas.',
+    maxSkips:'Máx. saltos',maxSkipsTip:"Cuántas veces puede saltar una palabra el jugador elegido en una ronda (0 = sin saltos). Desmarca 'Limitar saltos' para saltos infinitos. Al agotarse, el botón pasa a Rendirse.",
+    limitSkips:'Limitar saltos',
+    skipCost:'Coste por salto',skipCostTip:'Puntos que se restan al jugador elegido cada vez que salta una palabra (0 sin coste).',
+    maxPlayers:'Jugadores (máx.)',maxPlayersTip:'Cuántas personas pueden unirse (3 a 16). No puede ser menor que los jugadores ya presentes.',
+    anonMode:'Modo anónimo',anonModeTip:'Activado: durante la ronda todos aparecen con un nombre de animal aleatorio hasta la revelación. Desactivado: se muestran los nombres reales.',
+    startGame:'Iniciar partida',leave:'Salir',waitHostStart:'Esperando a que el anfitrión inicie...',
+    need3Start:'Necesitas al menos 3 jugadores para empezar.',
+    leftNeed3:'No quedan suficientes jugadores (mínimo 3), la partida volvió a la sala.',
+    roundOf:(n,total)=>`Ronda ${n} de ${total}`,
+    youAppearAs:alias=>`Apareces como ${alias}`,
+    namesVisible:'Los nombres son visibles esta ronda',
+    chosenIntro:'Eres el jugador elegido. Tu palabra:',
+    alsoBlocked:list=>`También bloqueadas: ${list.join(', ')}`,
+    clueRule:'Haz que los demás la escriban. Nunca digas la palabra ni parte de ella.',
+    found:count=>`Acertadas: <b>${count}</b>`,
+    skipLeft:(rem,cost)=>`Saltar palabra (${rem} rest.${cost})`,
+    skipInf:cost=>`Saltar palabra (∞${cost})`,
+    giveUp:'Rendirse en la ronda',
+    cluePh:'Escribe una pista...',
+    guesserIntro:'Uno de ustedes tiene una palabra secreta.',
+    guesserSub:'Descubre la palabra y escríbela en el chat.',
+    guessPh:'Chatea o adivina...',
+    send:'Enviar',gotIt:'¡acertó!',youTag:' (tú)',hostTag:'anfitrión',selfTag:'tú',
+    rejected:'Eso revela parte de la palabra o una palabra bloqueada. Descríbelo de otra forma.',
+    relatedFail:'No se pudieron cargar palabras relacionadas; solo se bloquea la palabra secreta.',
+    timeIsUp:'Se acabó el tiempo',
+    chosenWas:who=>`El jugador elegido era ${who}`,
+    wasAlias:(alias,who,isChosen)=>`<span style="margin-right:14px"><b style="color:var(--blue)">${alias}</b> era ${who}${isChosen?' <span class="circled">elegido</span>':''}</span>`,
+    wordsTitle:'Palabras',writtenBy:who=>`escrita por ${who}`,notFound:'no encontrada',
+    wordsDivMin:(c,m)=>`${c} ${c===1?'palabra':'palabras'} entre ${m} min`,
+    skipCostSummary:(pen,skips)=>`Coste por saltos: -${pen} pts (${skips} ${skips===1?'salto':'saltos'})`,
+    pointsFmt:pts=>`${pts} puntos`,
+    scoresTitle:'Puntuaciones',nextRound:'Siguiente ronda',finalResults:'Resultados finales',
+    waitHost:'Esperando al anfitrión...',finalScoresTitle:'Puntuaciones finales',backToLobby:'Volver a la sala',
+    enterNameErr:'Escribe un nombre primero.',
+    enterCodeErr:'Introduce el código de sala de 5 letras.',
+    hostClosed:'El anfitrión cerró la sala.',
+    alreadyStarted:'La partida ya ha comenzado.',
+    roomFull:'La sala está llena.',
+    loadingBank:label=>`Cargando palabras de ${label}...`,
+    loadBankErr:'No se pudieron cargar las palabras. Pulsa Iniciar de nuevo.',
+    webPrefix:'Web: ',
+    fbMixed:'Mixto (Respaldo)',fbAnimals:'Animales (Respaldo)',fbFood:'Comida y Bebidas (Respaldo)',
+    fbObjects:'Objetos Cotidianos (Respaldo)',fbNature:'Naturaleza y Lugares (Respaldo)',fbPop:'Cine y Pop (Respaldo)'
+  },
+  fr:{
+    tag:'faites-le deviner sans le dire',
+    yourName:'Votre nom',namePlaceholder:'ex. Maya',
+    createRoom:'Créer un salon',orJoin:'ou rejoindre un ami',codePlaceholder:'5-LET',join:'Rejoindre',
+    localMode:'Mode hors ligne même navigateur (onglets uniquement)',
+    localModeTip:'Utilise uniquement les onglets du même navigateur. Décochez pour jouer sur appareils ou en ligne.',
+    howToPlay:'Comment jouer',
+    howSteps:[
+      'Un joueur est choisi secrètement à chaque manche et voit un ou deux mots.',
+      'Il écrit des indices dans le chat pour faire écrire ce mot aux autres. Dire le mot, une partie de celui-ci ou un mot interdit est interdit.',
+      'Chaque fois qu’un joueur écrit le mot, le joueur choisi en reçoit un nouveau.',
+      'À la fin du temps, tout le monde est révélé et le joueur choisi marque des points selon les mots trouvés.',
+      'Chacun son tour devient le joueur choisi au fil des manches. Le meilleur score gagne.'
+    ],
+    lobby:'Salon',roomCodeLbl:'Code du salon à 5 lettres',
+    copyNote:'Partagez ce code à 5 lettres. Cliquez pour copier.',copied:'Copié.',
+    localModeNote:'Mode hors ligne même navigateur',netModeNote:'Salon multijoueur (LAN et en ligne)',
+    players:'Joueurs',settings:'Paramètres de jeu',
+    language:'Langue',languageTip:'Modifie la langue de l’interface ainsi que celle des banques de mots, mots interdits et propositions dans le chat.',
+    wordBank:'Banque de mots',wordBankTip:'Découvre dynamiquement des catégories sur GitHub Corpora ou cherche des mots sur Datamuse dans la langue choisie, avec secours hors ligne.',
+    customTopic:'Sujet personnalisé (Datamuse)',customTopicPh:'ex. espace, sports',
+    roundLen:'Durée de manche',roundLenTip:'Durée de chaque manche. Le joueur choisi tente de faire trouver un maximum de mots avant la fin du chrono.',
+    sec45:'45 secondes',sec60:'60 secondes',sec90:'90 secondes',sec120:'2 minutes',sec180:'3 minutes',
+    rounds:'Manches',roundsTip:'Nombre total de manches (1 à 20). Chaque joueur passe avant qu’un joueur ne rejoue ce rôle.',
+    extraBlocked:'Mots interdits en plus',extraBlockedTip:'Combien de mots supplémentaires le joueur choisi ne peut pas dire en plus du mot secret. Choisis automatiquement parmi les mots liés.',
+    maxSkips:'Passes max',maxSkipsTip:"Combien de fois le joueur choisi peut passer un mot dans une manche (0 = interdit). Décochez 'Limiter les passes' pour passes infinies. Sans passe restante, le bouton devient Abandonner.",
+    limitSkips:'Limiter les passes',
+    skipCost:'Coût par passe',skipCostTip:'Points retirés au joueur choisi à chaque mot passé (0 pour aucun coût).',
+    maxPlayers:'Joueurs (max)',maxPlayersTip:'Nombre maximum de joueurs (3 à 16). Ne peut pas être inférieur aux joueurs déjà présents.',
+    anonMode:'Mode anonyme',anonModeTip:'Activé : chacun apparaît sous un nom d’animal aléatoire jusqu’à la révélation. Désactivé : les vrais noms sont affichés.',
+    startGame:'Lancer la partie',leave:'Quitter',waitHostStart:'En attente du lancement par l’hôte...',
+    need3Start:'Il faut au moins 3 joueurs pour commencer.',
+    leftNeed3:'Pas assez de joueurs (3 minimum), retour au salon.',
+    roundOf:(n,total)=>`Manche ${n} sur ${total}`,
+    youAppearAs:alias=>`Vous apparaissez comme ${alias}`,
+    namesVisible:'Les noms sont visibles cette manche',
+    chosenIntro:'Vous êtes le joueur choisi. Votre mot :',
+    alsoBlocked:list=>`Également interdits : ${list.join(', ')}`,
+    clueRule:'Faites écrire ce mot aux autres. Ne dites jamais le mot ni une partie.',
+    found:count=>`Trouvés : <b>${count}</b>`,
+    skipLeft:(rem,cost)=>`Passer (${rem} rest.${cost})`,
+    skipInf:cost=>`Passer (∞${cost})`,
+    giveUp:'Abandonner la manche',
+    cluePh:'Écrivez un indice...',
+    guesserIntro:'L’un de vous possède un mot secret.',
+    guesserSub:'Trouvez le mot et écrivez-le dans le chat.',
+    guessPh:'Discutez ou devinez...',
+    send:'Envoyer',gotIt:'trouvé !',youTag:' (vous)',hostTag:'hôte',selfTag:'vous',
+    rejected:'Cela révèle une partie du mot ou un mot interdit. Décrivez-le autrement.',
+    relatedFail:'Les mots liés n’ont pas pu être chargés ; seul le mot secret est interdit.',
+    timeIsUp:'Temps écoulé',
+    chosenWas:who=>`Le joueur choisi était ${who}`,
+    wasAlias:(alias,who,isChosen)=>`<span style="margin-right:14px"><b style="color:var(--blue)">${alias}</b> était ${who}${isChosen?' <span class="circled">choisi</span>':''}</span>`,
+    wordsTitle:'Mots',writtenBy:who=>`écrit par ${who}`,notFound:'non trouvé',
+    wordsDivMin:(c,m)=>`${c} ${c===1?'mot':'mots'} divisés par ${m} min`,
+    skipCostSummary:(pen,skips)=>`Coût des passes : -${pen} pts (${skips} ${skips===1?'passe':'passes'})`,
+    pointsFmt:pts=>`${pts} points`,
+    scoresTitle:'Scores',nextRound:'Manche suivante',finalResults:'Résultats finaux',
+    waitHost:'En attente de l’hôte...',finalScoresTitle:'Scores finaux',backToLobby:'Retour au salon',
+    enterNameErr:'Veuillez entrer un nom d’abord.',
+    enterCodeErr:'Entrez le code du salon à 5 lettres.',
+    hostClosed:'L’hôte a fermé le salon.',
+    alreadyStarted:'La partie a déjà commencé.',
+    roomFull:'Le salon est complet.',
+    loadingBank:label=>`Chargement des mots (${label})...`,
+    loadBankErr:'Impossible de charger les mots. Réessayez.',
+    webPrefix:'Web : ',
+    fbMixed:'Mixte (Secours)',fbAnimals:'Animaux (Secours)',fbFood:'Nourriture et Boissons (Secours)',
+    fbObjects:'Objets du Quotidien (Secours)',fbNature:'Nature et Lieux (Secours)',fbPop:'Films et Pop (Secours)'
+  },
+  de:{
+    tag:'sag es, ohne es zu sagen',
+    yourName:'Dein Name',namePlaceholder:'z. B. Maya',
+    createRoom:'Raum erstellen',orJoin:'oder einem Freund beitreten',codePlaceholder:'5-BRF',join:'Beitreten',
+    localMode:'Offline-Modus im selben Browser (nur Tabs)',
+    localModeTip:'Nutzt nur Tabs im selben Browser. Abwählen für Geräte im Netzwerk oder online.',
+    howToPlay:'Spielanleitung',
+    howSteps:[
+      'Jede Runde wird heimlich eine Person ausgewählt und sieht ein oder zwei Wörter.',
+      'Sie schreibt Hinweise im Chat, damit die anderen das Wort schreiben. Das Wort, Teile davon oder extra blockierte Wörter zu sagen ist verboten.',
+      'Jedes Mal, wenn jemand das Wort schreibt, bekommt die gewählte Person ein neues.',
+      'Wenn die Zeit abläuft, werden alle aufgedeckt und die gewählte Person erhält Punkte für gefundene Wörter.',
+      'Alle wechseln sich als gewählte Person über die Runden ab. Die höchste Gesamtpunktzahl gewinnt.'
+    ],
+    lobby:'Lobby',roomCodeLbl:'5-Buchstaben-Raumcode',
+    copyNote:'Teile diesen 5-Buchstaben-Code. Zum Kopieren klicken.',copied:'Kopiert.',
+    localModeNote:'Offline-Modus im selben Browser',netModeNote:'Mehrspieler-Raum (LAN & Online)',
+    players:'Spieler',settings:'Spieleinstellungen',
+    language:'Sprache',languageTip:'Ändert die Sprache der Oberfläche sowie der Wortlisten, blockierten Wörter und Chat-Antworten.',
+    wordBank:'Wortbank',wordBankTip:'Lädt Kategorien dynamisch von GitHub Corpora oder sucht Wörter zu einem Thema über Datamuse in der gewählten Sprache – mit Offline-Ersatzlisten.',
+    customTopic:'Eigenes Thema (Datamuse)',customTopicPh:'z. B. weltraum, sport',
+    roundLen:'Rundenlänge',roundLenTip:'Wie lange jede Runde dauert. Die gewählte Person versucht, möglichst viele Wörter vor Ablauf der Zeit erraten zu lassen.',
+    sec45:'45 Sekunden',sec60:'60 Sekunden',sec90:'90 Sekunden',sec120:'2 Minuten',sec180:'3 Minuten',
+    rounds:'Runden',roundsTip:'Wie viele Runden insgesamt gespielt werden (1 bis 20). Jeder kommt einmal dran, bevor jemand ein zweites Mal dran ist.',
+    extraBlocked:'Extra blockierte Wörter',extraBlockedTip:'Wie viele zusätzliche Wörter die gewählte Person neben dem Zielwort nicht sagen darf. Automatisch aus verwandten Wörtern gewählt.',
+    maxSkips:'Max. Überspringen',maxSkipsTip:"Wie oft ein Wort pro Runde übersprungen werden darf (0 = kein Überspringen). 'Überspringen begrenzen' abwählen für unbegrenzt. Danach wird der Button zu Aufgeben.",
+    limitSkips:'Überspringen begrenzen',
+    skipCost:'Sprungkosten',skipCostTip:'Punkte, die beim Überspringen eines Wortes abgezogen werden (0 für keine Kosten).',
+    maxPlayers:'Spieler (max.)',maxPlayersTip:'Maximalzahl an Spielern (3 bis 16). Kann nicht kleiner als die aktuelle Spielerzahl sein.',
+    anonMode:'Anonymer Modus',anonModeTip:'An: In der Runde tritt jeder unter einem zufälligen Tiernamen bis zur Aufdeckung auf. Aus: Echte Namen sind sichtbar.',
+    startGame:'Spiel starten',leave:'Verlassen',waitHostStart:'Warte darauf, dass der Host startet...',
+    need3Start:'Mindestens 3 Spieler werden zum Starten benötigt.',
+    leftNeed3:'Nicht genug Spieler übrig (mindestens 3 nötig), zurück in die Lobby.',
+    roundOf:(n,total)=>`Runde ${n} von ${total}`,
+    youAppearAs:alias=>`Du erscheinst als ${alias}`,
+    namesVisible:'Namen sind in dieser Runde sichtbar',
+    chosenIntro:'Du bist die gewählte Person. Dein Wort:',
+    alsoBlocked:list=>`Ebenfalls blockiert: ${list.join(', ')}`,
+    clueRule:'Bringe die anderen dazu, es zu schreiben. Sage es oder Teile davon niemals.',
+    found:count=>`Gefunden: <b>${count}</b>`,
+    skipLeft:(rem,cost)=>`Wort überspringen (${rem} übrig${cost})`,
+    skipInf:cost=>`Wort überspringen (∞${cost})`,
+    giveUp:'Runde aufgeben',
+    cluePh:'Schreibe einen Hinweis...',
+    guesserIntro:'Eine Person hat ein geheimes Wort.',
+    guesserSub:'Finde das Wort heraus und schreibe es in den Chat.',
+    guessPh:'Chatten oder raten...',
+    send:'Senden',gotIt:'erraten!',youTag:' (du)',hostTag:'Host',selfTag:'du',
+    rejected:'Das verrät einen Teil des Wortes oder ein blockiertes Wort. Beschreibe es anders.',
+    relatedFail:'Verwandte Wörter konnten nicht geladen werden; nur das Wort selbst ist blockiert.',
+    timeIsUp:'Die Zeit ist um',
+    chosenWas:who=>`Die gewählte Person war ${who}`,
+    wasAlias:(alias,who,isChosen)=>`<span style="margin-right:14px"><b style="color:var(--blue)">${alias}</b> war ${who}${isChosen?' <span class="circled">gewählt</span>':''}</span>`,
+    wordsTitle:'Wörter',writtenBy:who=>`geschrieben von ${who}`,notFound:'nicht gefunden',
+    wordsDivMin:(c,m)=>`${c} ${c===1?'Wort':'Wörter'} geteilt durch ${m} Min.`,
+    skipCostSummary:(pen,skips)=>`Sprungkosten: -${pen} Pkt. (${skips} ${skips===1?'Sprung':'Sprünge'})`,
+    pointsFmt:pts=>`${pts} Punkte`,
+    scoresTitle:'Punktestand',nextRound:'Nächste Runde',finalResults:'Endergebnis',
+    waitHost:'Warte auf den Host...',finalScoresTitle:'Endergebnis',backToLobby:'Zurück zur Lobby',
+    enterNameErr:'Bitte gib zuerst einen Namen ein.',
+    enterCodeErr:'Gib den 5-Buchstaben-Raumcode ein.',
+    hostClosed:'Der Host hat den Raum geschlossen.',
+    alreadyStarted:'Das Spiel hat bereits begonnen.',
+    roomFull:'Der Raum ist voll.',
+    loadingBank:label=>`Lade Wörter (${label})...`,
+    loadBankErr:'Wörter konnten nicht geladen werden. Erneut starten.',
+    webPrefix:'Web: ',
+    fbMixed:'Gemischt (Ersatz)',fbAnimals:'Tiere (Ersatz)',fbFood:'Essen & Trinken (Ersatz)',
+    fbObjects:'Alltagsgegenstände (Ersatz)',fbNature:'Natur & Orte (Ersatz)',fbPop:'Filme & Pop (Ersatz)'
+  },
+  he:{
+    tag:'תארו את זה בלי להגיד את זה',
+    yourName:'השם שלך',namePlaceholder:'למשל מאיה',
+    createRoom:'יצירת חדר',orJoin:'או הצטרפות לחבר',codePlaceholder:'5-אות',join:'הצטרפות',
+    localMode:'מצב לא מקוון באותו דפדפן (לשוניות בלבד)',
+    localModeTip:'משתמש בלשוניות של אותו דפדפן בלבד. בטלו סימון לחיבור בין מכשירים או ברשת.',
+    howToPlay:'איך משחקים',
+    howSteps:[
+      'בכל סיבוב נבחר בחשאי שחקן אחד ורואה מילה או שתיים.',
+      'הוא כותב רמזים בצ׳אט כדי שהאחרים יכתבו את המילה. אסור לומר את המילה, חלק ממנה או מילה חסומה נוספת.',
+      'בכל פעם שמישהו כותב את המילה, השחקן הנבחר מקבל מילה חדשה.',
+      'כשהזמן נגמר, כולם נחשפים והשחקן הנבחר מקבל נקודות על המילים שנמצאו.',
+      'השחקנים מתחלפים בתפקיד הנבחר לאורך הסיבובים. הניקוד הגבוה ביותר מנצח.'
+    ],
+    lobby:'חדר המתנה',roomCodeLbl:'קוד חדר בן 5 אותיות',
+    copyNote:'שתפו את הקוד בן 5 האותיות. לחצו להעתקה.',copied:'הועתק.',
+    localModeNote:'מצב לא מקוון באותו דפדפן',netModeNote:'חדר מרובה משתתפים (רשת ואינטרנט)',
+    players:'שחקנים',settings:'הגדרות משחק',
+    language:'שפה',languageTip:'משנה את שפת הממשק וכן את השפה של מאגרי המילים, המילים החסומות והניחושים בצ׳אט.',
+    wordBank:'מאגר מילים',wordBankTip:'טוען קטגוריות באופן דינמי מ-GitHub Corpora או שולף מילים לכל נושא מותאם אישית מ-Datamuse בשפה שנבחרה, עם מאגרי גיבוי כשאין רשת.',
+    customTopic:'נושא מותאם (Datamuse)',customTopicPh:'למשל חלל, ספורט',
+    roundLen:'אורך סיבוב',roundLenTip:'כמה זמן נמשך כל סיבוב. השחקן הנבחר מנסה לגרום לאחרים לכתוב כמה שיותר מילים לפני שהזמן נגמר.',
+    sec45:'45 שניות',sec60:'60 שניות',sec90:'90 שניות',sec120:'2 דקות',sec180:'3 דקות',
+    rounds:'סיבובים',roundsTip:'כמה סיבובים ישוחקו בסך הכול (1 עד 20). כל שחקן מקבל תור לפני שמישהו מקבל תור שני.',
+    extraBlocked:'מילים חסומות נוספות',extraBlockedTip:'כמה מילים נוספות אסור לשחקן הנבחר לומר מעבר למילה עצמה. נבחרות אוטומטית ממילים קשורות.',
+    maxSkips:'מקסימום דילוגים',maxSkipsTip:'כמה פעמים שחקן נבחר יכול לדלג על מילה בסיבוב (0 = ללא דילוגים). בטלו את "הגבלת דילוגים" לדילוגים ללא הגבלה. כשאוזלים הדילוגים, הכפתור הופך לכניעה.',
+    limitSkips:'הגבלת דילוגים',
+    skipCost:'עלות דילוג',skipCostTip:'נקודות שמופחתות מהשחקן הנבחר על כל דילוג (0 ללא עלות).',
+    maxPlayers:'מקסימום שחקנים',maxPlayersTip:'כמה שחקנים יכולים להצטרף לחדר (3 עד 16). לא יכול להיות קטן ממספר השחקנים שכבר בחדר.',
+    anonMode:'מצב אנונימי',anonModeTip:'מופעל: במהלך הסיבוב כולם מופיעים בשם חיה אקראי עד לחשיפה. כבוי: השמות האמיתיים מוצגים.',
+    startGame:'התחלת משחק',leave:'יציאה',waitHostStart:'ממתינים למנהל החדר שיתחיל...',
+    need3Start:'דרושים לפחות 3 שחקנים כדי להתחיל.',
+    leftNeed3:'נשארו מעט מדי שחקנים (דרושים לפחות 3), המשחק חזר לחדר ההמתנה.',
+    roundOf:(n,total)=>`סיבוב ${n} מתוך ${total}`,
+    youAppearAs:alias=>`הכינוי שלך הוא ${alias}`,
+    namesVisible:'השמות גלויים בסיבוב זה',
+    chosenIntro:'אתה השחקן הנבחר. המילה שלך:',
+    alsoBlocked:list=>`חסומות גם: ${list.join(', ')}`,
+    clueRule:'גרמו לאחרים לכתוב אותה. לעולם אל תאמרו אותה או חלק ממנה.',
+    found:count=>`נמצאו: <b>${count}</b>`,
+    skipLeft:(rem,cost)=>`דלג על מילה (${rem} נותרו${cost})`,
+    skipInf:cost=>`דלג על מילה (∞${cost})`,
+    giveUp:'כניעה בסיבוב',
+    cluePh:'כתבו רמז...',
+    guesserIntro:'אחד מכם מחזיק מילה סודית.',
+    guesserSub:'גלו את המילה וכתבו אותה בצ׳אט.',
+    guessPh:'שוחחו או נחשו...',
+    send:'שליחה',gotIt:'בול!',youTag:' (את/ה)',hostTag:'מנהל',selfTag:'את/ה',
+    rejected:'זה חושף חלק מהמילה או מילה חסומה. תארו זאת בדרך אחרת.',
+    relatedFail:'לא ניתן היה לטעון מילים קשורות, ולכן רק המילה עצמה חסומה.',
+    timeIsUp:'הזמן נגמר',
+    chosenWas:who=>`השחקן הנבחר היה ${who}`,
+    wasAlias:(alias,who,isChosen)=>`<span style="margin-inline-end:14px"><b style="color:var(--blue)">${alias}</b> היה ${who}${isChosen?' <span class="circled">נבחר</span>':''}</span>`,
+    wordsTitle:'מילים',writtenBy:who=>`נכתב על ידי ${who}`,notFound:'לא נמצא',
+    wordsDivMin:(c,m)=>`${c} ${c===1?'מילה':'מילים'} חלקי ${m} דק׳`,
+    skipCostSummary:(pen,skips)=>`עלות דילוגים: -${pen} נק׳ (${skips} דילוגים)`,
+    pointsFmt:pts=>`${pts} נקודות`,
+    scoresTitle:'ניקוד',nextRound:'הסיבוב הבא',finalResults:'תוצאות סיום',
+    waitHost:'ממתינים למנהל החדר...',finalScoresTitle:'ניקוד סופי',backToLobby:'חזרה לחדר ההמתנה',
+    enterNameErr:'יש להזין שם תחילה.',
+    enterCodeErr:'יש להזין קוד חדר בן 5 אותיות.',
+    hostClosed:'מנהל החדר סגר את החדר.',
+    alreadyStarted:'המשחק כבר התחיל.',
+    roomFull:'החדר מלא.',
+    loadingBank:label=>`טוען מילים (${label})...`,
+    loadBankErr:'לא ניתן היה לטעון מילים. לחצו התחל שוב.',
+    webPrefix:'רשת: ',
+    fbMixed:'מעורב (גיבוי)',fbAnimals:'בעלי חיים (גיבוי)',fbFood:'אוכל ושתייה (גיבוי)',
+    fbObjects:'חפצים יומיומיים (גיבוי)',fbNature:'טבע ומקומות (גיבוי)',fbPop:'סרטים ותרבות (גיבוי)'
+  }
+};
+
 /* ---------------- fallback word banks & dynamic web sources ---------------- */
 const CORPORA_API_BASE='https://api.github.com/repos/dariusk/corpora/contents/data';
 const CORPORA_RAW_BASE='https://raw.githubusercontent.com/dariusk/corpora/master/data/';
 const DATAMUSE_WORDS_URL='https://api.datamuse.com/words';
 
 const FALLBACK_WORD_BANKS={
-  mixed:{
-    label:'Mixed (Fallback)',
-    words:[
-      'apple','anchor','astronaut','avocado','backpack','balloon','banana','lighthouse','bicycle','blanket',
-      'boomerang','broccoli','butterfly','cactus','camera','campfire','candle','canyon','carousel','castle',
-      'cheetah','chocolate','compass','cookie','crocodile','crown','diamond','dinosaur','dolphin','dragonfly',
-      'eclipse','elephant','elevator','feather','fireworks','flamingo','flashlight','fountain','giraffe','glacier',
-      'goldfish','guitar','hammock','hedgehog','helicopter','hourglass','iceberg','iguana','island','jellyfish',
-      'kangaroo','keyboard','kite','koala','labyrinth','lantern','lavender','lemonade','leopard','library',
-      'lightning','lobster','magnet','mango','marshmallow','meadow','microscope','milkshake','moonlight','mountain',
-      'mushroom','narwhal','necklace','octopus','origami','ostrich','paintbrush','pancake','parachute','peacock',
-      'pelican','penguin','pineapple','pirate','platypus','polar bear','popcorn','porcupine','pretzel','pyramid',
-      'raccoon','rainbow','rattlesnake','refrigerator','rhinoceros','rollercoaster','sailboat','sandcastle','satellite',
-      'scarecrow','scorpion','seahorse','shadow','skeleton','skyscraper','snowflake','spaceship','spaghetti','sphinx',
-      'squirrel','starfish','stethoscope','strawberry','submarine','sunflower','surfboard','telescope','thunderstorm',
-      'tornado','trampoline','treasure','treehouse','trombone','tulip','umbrella','unicorn','vacuum','vampire',
-      'volcano','waffle','waterfall','watermelon','wheelbarrow','windmill','wizard','xylophone','zebra'
-    ]
+  en:{
+    mixed:['apple','anchor','astronaut','avocado','backpack','balloon','banana','lighthouse','bicycle','blanket','boomerang','broccoli','butterfly','cactus','camera','campfire','candle','canyon','carousel','castle','cheetah','chocolate','compass','cookie','crocodile','crown','diamond','dinosaur','dolphin','dragonfly','eclipse','elephant','elevator','feather','fireworks','flamingo','flashlight','fountain','giraffe','glacier','goldfish','guitar','hammock','hedgehog','helicopter','hourglass','iceberg','iguana','island','jellyfish','kangaroo','keyboard','kite','koala','labyrinth','lantern','lavender','lemonade','leopard','library','lightning','lobster','magnet','mango','marshmallow','meadow','microscope','milkshake','moonlight','mountain','mushroom','narwhal','necklace','octopus','origami','ostrich','paintbrush','pancake','parachute','peacock','pelican','penguin','pineapple','pirate','platypus','polar bear','popcorn','porcupine','pretzel','pyramid','raccoon','rainbow','rattlesnake','refrigerator','rhinoceros','rollercoaster','sailboat','sandcastle','satellite','scarecrow','scorpion','seahorse','shadow','skeleton','skyscraper','snowflake','spaceship','spaghetti','sphinx','squirrel','starfish','stethoscope','strawberry','submarine','sunflower','surfboard','telescope','thunderstorm','tornado','trampoline','treasure','treehouse','trombone','tulip','umbrella','unicorn','vacuum','vampire','volcano','waffle','waterfall','watermelon','wheelbarrow','windmill','wizard','xylophone','zebra'],
+    animals:['albatross','alligator','alpaca','antelope','armadillo','badger','barracuda','bat','beaver','beetle','beluga','bison','bloodhound','bobcat','buffalo','butterfly','camel','capybara','cardinal','caribou','caterpillar','chameleon','cheetah','chimpanzee','chinchilla','chipmunk','cobra','condor','cougar','cow','coyote','crab','crane','crocodile','crow','dalmatian','deer','dingo','dolphin','donkey','dragonfly','duck','eagle','echidna','eel','elephant','elk','emu','falcon','ferret','flamingo','flea','fox','frog','gazelle','gecko','gerbil','gibbon','giraffe','goat','goldfish','goose','gorilla','grasshopper','grizzly','gull','hamster','hawk','hedgehog','heron','hippopotamus','hornet','horse','hummingbird','hyena','iguana','impala','jackal','jaguar','jay','jellyfish','kangaroo','kingfisher','koala','komodo dragon','ladybug','lemur','leopard','lion','lizard','llama','lobster','locust','lynx','macaw','mallard','manatee','mantis','marmot','meerkat','mink','mole','mongoose','monkey','moose','mosquito','moth','mouse','mule','narwhal','newt','nightingale','ocelot','octopus','opossum','orangutan','oryx','ostrich','otter','owl','ox','oyster','panda','panther','parrot','partridge','peacock','pelican','penguin','perch','pheasant','pig','pigeon','platypus','polar bear','porcupine','porpoise','prairie dog','prawn','puffin','puma','python','quail','rabbit','raccoon','ram','rat','rattlesnake','raven','reindeer','rhinoceros','roadrunner','robin','rooster','salamander','salmon','sandpiper','sardine','scorpion','sea lion','seahorse','seal','shark','sheep','shrew','shrimp','skunk','sloth','slug','snail','snake','sparrow','spider','squid','squirrel','starfish','stingray','stork','swallow','swan','tapir','tarantula','termite','tiger','toad','toucan','trout','turkey','turtle','viper','vulture','walrus','warbler','wasp','weasel','whale','whippet','wildcat','wolf','wolverine','wombat','woodpecker','worm','wren','yak','zebra'],
+    food:['almonds','apple','apricot','artichoke','asparagus','avocado','bacon','bagel','baguette','banana','barbecue','biscuit','blackberry','blueberry','bread','broccoli','brownie','burrito','butter','cabbage','cake','cantaloupe','caramel','carrot','cashew','cauliflower','celery','cereal','cheddar','cheeseburger','cheesecake','cherry','chestnut','chicken','chili','chocolate','churro','cider','cinnamon','clam','coconut','coffee','cookie','corn','crab','cracker','cranberry','croissant','cucumber','cupcake','curry','custard','donut','dumpling','eggplant','espresso','falafel','fig','fondue','garlic','gelato','ginger','grape','grapefruit','guacamole','ham','hazelnut','honey','hummus','ice cream','jam','kebab','ketchup','kiwi','lasagna','lemon','lemonade','lentil','lettuce','lime','lobster','macaroni','mango','maple syrup','marshmallow','meatball','melon','milkshake','mint','muffin','mushroom','mustard','nacho','noodle','oatmeal','olive','omelette','onion','orange','oregano','oyster','pancake','papaya','pasta','pastry','peach','peanut','pear','peas','pecan','pepper','pepperoni','pickle','pie','pineapple','pistachio','pizza','plum','polenta','pomegranate','popcorn','potato','pretzel','praline','pudding','pumpkin','quesadilla','radish','raisin','ramen','raspberry','ravioli','rice','risotto','rosemary','saffron','salad','salsa','sandwich','sardine','sausage','scone','sesame','sherbet','shrimp','smoothie','sorbet','soup','spaghetti','spinach','steak','strawberry','sundae','sushi','taco','tamale','tangerine','tapioca','tea','thyme','tofu','tomato','tortilla','tuna','turkey','turnip','vanilla','venison','waffle','walnut','wasabi','watermelon','yogurt','zucchini'],
+    objects:['alarm clock','anchor','armchair','backpack','ball','balloon','bandage','barrel','basket','battery','bed','bell','belt','bench','bicycle','binoculars','blanket','blender','book','bookmark','boot','bottle','bowl','bracelet','brick','briefcase','broom','brush','bucket','buckle','bulb','button','cabinet','calculator','calendar','camera','candle','canister','canvas','cap','card','carpet','cart','chain','chair','chalk','charger','clock','coat','coin','comb','compass','computer','container','couch','cradle','crate','crayon','cup','curtain','cushion','dagger','desk','dice','dish','doorknob','drawer','drill','drum','envelope','eraser','fan','faucet','feather','fence','file','filter','flag','flashlight','flask','flute','folder','fork','frame','funnel','furniture','gavel','glasses','globe','glove','glue','goggles','guitar','hammer','hammock','hanger','harp','hat','headphones','helmet','hook','hose','hourglass','iron','jacket','jar','jersey','jewelry','jug','jigsaw','kettle','key','keyboard','kite','knife','knob','ladder','ladle','lamp','lantern','laptop','latch','leash','lens','lever','lighter','lock','locket','luggage','magnet','magnifying glass','map','marker','mat','match','mattress','medal','megaphone','mirror','mitten','mop','mouse','mug','nail','napkin','necklace','needle','net','notebook','oar','padlock','pail','paintbrush','pajamas','pan','paperclip','parachute','parasol','passport','pen','pencil','pendulum','perfume','phone','photograph','piano','picture','pillow','pin','pipe','pitcher','plaque','plate','pliers','plug','plunger','pocket','pot','pouch','projector','pulley','purse','puzzle','quilt','racket','radio','raft','razor','remote','ribbon','ring','robe','rocket','rope','ruler','saddle','safe','sail','sandal','saw','scale','scarf','scissors','screen','screw','screwdriver','scythe','seal','seat','shampoo','shelf','shield','shirt','shoe','shovel','shower','sign','sink','skate','skillet','skirt','sled','slipper','soap','sock','sofa','solar panel','spanner','spatula','speaker','sponge','spoon','spring','stamp','stapler','statue','stethoscope','sticker','stool','stopwatch','stove','strap','straw','string','suitcase','sunglasses','sweater','sword','syringe','table','tablet','tag','tape','teapot','telescope','tent','thermostat','thimble','thread','ticket','tie','tile','timer','tissue','toaster','tongs','toothbrush','toothpaste','torch','towel','toy','tractor','tray','trolley','trophy','trumpet','trunk','tub','tube','tuba','umbrella','urn','vacuum','vase','vest','violin','visor','wallet','wand','wardrobe','watch','watering can','wheel','wheelbarrow','whistle','wig','window','windshield','wineglass','wire','wrench','xylophone','yarn','yo yo','zipper'],
+    nature:['archipelago','atoll','avalanche','bay','beach','blizzard','boulder','brook','butte','canal','canyon','cape','cave','cavern','cliff','cloud','coast','comet','constellation','coral reef','crater','creek','current','dawn','delta','desert','dew','dune','dusk','earthquake','eclipse','estuary','fjord','flood','fog','forest','frost','geyser','glacier','gorge','grassland','gulf','harbor','hill','horizon','iceberg','island','isthmus','jungle','lagoon','lake','landslide','lava','lightning','marsh','meadow','mesa','meteor','mist','monsoon','moon','moor','mountain','mudflat','nebula','oasis','ocean','peninsula','plain','plateau','pond','prairie','precipice','rain','rainbow','rainforest','rapids','reef','ridge','river','sandbar','savanna','sea','seashore','shoal','shore','sinkhole','sky','snow','snowstorm','sound','spring','star','steppe','storm','strait','stream','sun','sunrise','sunset','swamp','swell','tide','tundra','twilight','typhoon','valley','volcano','waterfall','watershed','wave','wetland','whirlpool','wilderness','wind','woods'],
+    pop:['alien','amulet','archer','arena','armor','asteroid','atlantis','avatar','wizard','dragon','phoenix','unicorn','mermaid','vampire','werewolf','zombie','ghost','goblin','ogre','troll','elf','dwarf','knight','samurai','ninja','pirate','cowboy','detective','spy','villain','hero','sidekick','time travel','portal','spaceship','lightsaber','wand','broomstick','potion','spell','crown','throne','castle','dungeon','treasure','map','compass','riddle','prophecy','curse','shield','sword','bow','arrow','cloak','mask','robot','cyborg','android','clone','hologram','laser','teleporter','dinosaur','kaiju','kraken','gargoyle','sphinx','minotaur','centaur','griffin','basilisk','hydra','yeti','bigfoot','loch ness','haunted house','carnival','circus','stage','spotlight','script','director','camera','soundtrack','sequel','plot twist','arcade','highscore','boss fight','quest','guild','inventory','respawn','cutscene','trophy','podium']
   },
-  animals:{
-    label:'Animals (Fallback)',
-    words:[
-      'albatross','alligator','alpaca','antelope','armadillo','badger','barracuda','bat','beaver','beetle',
-      'beluga','bison','bloodhound','bobcat','buffalo','butterfly','camel','capybara','cardinal','caribou',
-      'caterpillar','chameleon','cheetah','chimpanzee','chinchilla','chipmunk','cobra','condor','cougar','cow',
-      'coyote','crab','crane','crocodile','crow','dalmatian','deer','dingo','dolphin','donkey','dragonfly',
-      'duck','eagle','echidna','eel','elephant','elk','emu','falcon','ferret','flamingo','flea','fox','frog',
-      'gazelle','gecko','gerbil','gibbon','giraffe','goat','goldfish','goose','gorilla','grasshopper','grizzly',
-      'gull','hamster','hawk','hedgehog','heron','hippopotamus','hornet','horse','hummingbird','hyena','iguana',
-      'impala','jackal','jaguar','jay','jellyfish','kangaroo','kingfisher','koala','komodo dragon','ladybug',
-      'lemur','leopard','lion','lizard','llama','lobster','locust','lynx','macaw','mallard','manatee','mantis',
-      'marmot','meerkat','mink','mole','mongoose','monkey','moose','mosquito','moth','mouse','mule','narwhal',
-      'newt','nightingale','ocelot','octopus','opossum','orangutan','oryx','ostrich','otter','owl','ox','oyster',
-      'panda','panther','parrot','partridge','peacock','pelican','penguin','perch','pheasant','pig','pigeon',
-      'platypus','polar bear','porcupine','porpoise','prairie dog','prawn','puffin','puma','python','quail',
-      'rabbit','raccoon','ram','rat','rattlesnake','raven','reindeer','rhinoceros','roadrunner','robin','rooster',
-      'salamander','salmon','sandpiper','sardine','scorpion','sea lion','seahorse','seal','shark','sheep','shrew',
-      'shrimp','skunk','sloth','slug','snail','snake','sparrow','spider','squid','squirrel','starfish','stingray',
-      'stork','swallow','swan','tapir','tarantula','termite','tiger','toad','toucan','trout','turkey','turtle',
-      'viper','vulture','walrus','warbler','wasp','weasel','whale','whippet','wildcat','wolf','wolverine','wombat',
-      'woodpecker','worm','wren','yak','zebra'
-    ]
+  es:{
+    mixed:['manzana','ancla','astronauta','aguacate','mochila','globo','plátano','faro','bicicleta','manta','bumerán','brócoli','mariposa','cactus','cámara','fogata','vela','cañón','carrusel','castillo','guepardo','chocolate','brújula','galleta','cocodrilo','corona','diamante','dinosaurio','delfín','libélula','eclipse','elefante','ascensor','pluma','fuegos artificiales','flamenco','linterna','fuente','jirafa','glaciar','guitarra','hamaca','erizo','helicóptero','iceberg','iguana','isla','medusa','canguro','teclado','cometa','koala','laberinto','linterna','lavanda','limonada','leopardo','biblioteca','relámpago','langosta','imán','mango','malvavisco','pradera','microscopio','batido','montaña','hongo','collar','pulpo','origami','avestruz','pincel','panqueque','paracaídas','pingüino','piña','pirata','palomitas','puercoespín','pirámide','mapache','arcoíris','cascabel','rinoceronte','velero','satélite','espantapájaros','escorpión','caballito de mar','sombra','esqueleto','rascacielos','copo de nieve','nave espacial','espagueti','ardilla','estrella de mar','fresa','submarino','girasol','telescopio','tormenta','tornado','tesoro','trombón','tulipán','paraguas','unicornio','volcán','gofre','cascada','sandía','molino','mago','xilófono','cebra'],
+    animals:['águila','alce','ardilla','avestruz','ballena','búho','burro','caballo','cabra','camaleón','camello','cangrejo','canguro','caracol','castor','cebra','cerdo','ciervo','cisne','cobra','cocodrilo','conejo','coyote','cuervo','delfín','elefante','erizo','estrella de mar','foca','flamenco','gallina','ganso','gato','gaviota','gorila','guepardo','halcón','hámster','hiena','hipopótamo','hormiga','iguana','jabalí','jaguar','jirafa','koala','lagarto','lechuza','león','leopardo','libélula','liebre','lince','lobo','loro','mapache','mariposa','medusa','mono','morsa','murciélago','nutria','oso','oveja','paloma','panda','pantera','pato','pavo real','pelícano','perro','pingüino','pulpo','puma','rana','rata','ratón','rinoceronte','ruiseñor','salamandra','salmón','sapo','serpiente','tiburón','tigre','topo','toro','tortuga','tucán','urraca','vaca','venado','zorro'],
+    food:['aceite','aguacate','ajo','almendra','arroz','atún','azúcar','bacon','banana','batido','berenjena','bizcocho','brócoli','burrito','cacahuete','café','calabaza','canela','caramelo','carne','cebolla','cereza','champiñón','chocolate','chorizo','ciruela','coco','coliflor','conejo','cordero','crema','croissant','dátil','durazno','empanada','ensalada','espagueti','espinaca','flan','fresa','galleta','garbanzo','gelatina','gofre','granada','guacamole','higo','huevo','jamón','jengibre','judía','kiwi','lasagna','lechuga','lenteja','limón','limonada','maíz','mango','mantequilla','manzana','marisco','melocotón','melón','mermelada','miel','naranja','nata','nuez','aceituna','pan','panqueque','papa','papaya','pasta','pastel','patata','pepino','pera','pimienta','piña','pistacho','pizza','plátano','pollo','queso','rábano','remolacha','romero','sal','salmón','salsa','sandía','sopa','té','tomate','tostada','trucha','uva','vainilla','verdura','vinagre','yogur','zanahoria'],
+    objects:['aguja','alfiler','alfombra','alicate','almohada','ancla','anillo','anteojos','armario','baúl','bicicleta','billete','bolígrafo','bolsa','botella','botón','brocha','brújula','bufanda','cable','caja','cajón','calcetín','calendario','cama','cámara','campana','candado','candela','canasta','cartera','casco','cazuela','cepillo','cerilla','cerradura','chaleco','chaqueta','chicle','cinta','cinturón','clavo','coche','cojín','colchón','collar',' peine','computadora','cortina','cuchara','cuchillo','cuadro','cuaderno','cuerda','dado','dedal','destornillador','diario','diente','disco','embudo','encendedor','escalera','escoba','escudo','espejo','esponja','estante','estuche','farol','ficha','flauta','flecha','foco','fósforo','funda','gafas','garrafa','gato','globo','goma','gorro','guitarra','hacha','hamaca','hebilla','heladera','hilo','hoja','horno','hucha','imán','imperdible','inodoro','interruptor','jarra','jarrón','jaula','joya','lámpara','lápiz','lata','látigo','lavadora','leña','lente','libro','limón','linterna','llave','llavero','lona','lupa','maleta','manguera','mano','mapa','máquina','mariposa','martillo','máscara','mesa','mochila','moneda','monitor','motor','muñeca','navaja','nevera','nota','nudo','olla','ordenador','orejera','pala','palanca','palillo','pantalla','pañuelo','papel','paraguas','pared','parlante','parrilla','pasaporte','patín','peine','pelota','pendiente','percha','periódico','perno','persiana','pesa','pestaña','piano','pincel','pinza','pipa','pizarra','plancha','plano','plato','pluma','plumero','polea','polvo','pomada','porta','poste','postal','prensa','prisma','puerta','puerto','pulsera','puñal','pupitre','queso','radio','raqueta','rastrillo','ratón','recibo','regla','reloj','remo','revista','riel','riñón','roda','rodillo','ropa','rueda','sábana','saco','silla','sillón','soga','sombrero','sonda','soplador','sortija','sótano','suéter','tabla','tablero','taburete','taco','taladro','talón','tambor','tapa','tapete','tapón','tarjeta','tarro','taza','tecla','teclado','teléfono','televisor','tenedor','tienda','tijera','timbre','tinta','tintero','tira','toalla','tobillo','toldo','tomacorriente','tonel','tope','torbellino','torcha','tornillo','torre','torta','tostadora','trampa','trapo','trébol','tren','triángulo','trineo','trompeta','tronco','trofeo','tubería','tubo','tuerca','túnel','turbina','urna','uva','vaina','vajilla','valija','válvula','valla','vara','vaso','vela','velero','velcro','vena','venda','ventana','ventilador','verja','vestido','vídeo','vidrio','viga','vinilo','violín','visera','visita','vitamina','vitrina','volante','voltaje','vuelta','yunque','zafiro','zanahoria','zapato','zapatilla','zarza','zoquete','zueco'],
+    nature:['acantilado','agua','aire','alba','aldea','alga','aluvión','amanecer','anochecer','archipiélago','arena','arrecife','arroyo','atmósfera','aurora','avalancha','bahía','barranco','bosque','brisa','bruma','caída','caleta','campo','cañón','cascada','cueva','cumbre','delta','desierto','duna','eclipse','ensenada','erupción','estrella','estuario','fiordo','flora','flor','frente','fuego','fuente','glaciar','golfo','gruta','helada','horizonte','huracán','incendio','invierno','isla','istmo','jungla','lago','laguna','lava','lluvia','loma','luz','marea','marisma','meseta','meteorito','niebla','nieve','nube','oasis','océano','ola','orilla','otoño','pampa','pantano','páramo','parque','paso','península','peñasco','piedra','planicie','planeta','playa','polvo','pradera','primavera','quebrada','raíz','rama','rambla','rápidos','rayo','recodo','relámpago','reserva','riachuelo','ribiera','río','roca','rocío','sabana','salina','selva','sendero','sierra','sol','solsticio','sombra','sotobosque','surco','talud','tempestad','terremoto','tierra','tifón','tormenta','tornado','torrente','trópico','trueno','tsunami','tundra','valle','vapor','vegetación','viento','volcán'],
+    pop:['alienígena','amuleto','anillo','arena','armadura','asteroide','atlántida','avatar','aventurero','banda sonora','batalla','bruja','caballero','cámara','camino','campamento','canción','capitán','caravana','carrusel','castillo','cazador','chiste','circo','ciudad','clon','cometa','compañero','corona','criatura','cristal','cueva','cultura','destino','detective','dimensión','dinosaurio','director','dragón','duelo','duende','elfo','embrujo','enigma','escenario','escudo','espada','espectáculo','espejo','espía','estrella','fabula','fantasma','final','flecha','foco','fortaleza','futuro','galaxia','gigante','gladiador','guerrero','guion','héroe','hechizo','historia','holograma','isla','juego','juguete','jungla','laberinto','láser','leyenda','libro','lucha','mago','mapa','máscara','misión','monstruo','misterio','mito','música','nave','ninja','ogro','oráculo','oscuro','palacio','pandilla','pantalla','pasaje','película','personaje','pirata','planeta','poción','poder','portal','princesa','profecía','próximo','puerta','quest','rayo','reino','relato','robot','rol','ruina','sabio','samurái','secreto','secuela','señal','serpiente','sombra','sorpresa','superhéroe','tablón','templo','tesoro','tiempo','torneo','torre','trampa','transformación','trofeo','trono','unicornio','universo','vampiro','varita','villano','viaje','viento','visión','zombie']
   },
-  food:{
-    label:'Food & Drinks (Fallback)',
-    words:[
-      'almonds','apple','apricot','artichoke','asparagus','avocado','bacon','bagel','baguette','banana',
-      'barbecue','biscuit','blackberry','blueberry','bread','broccoli','brownie','burrito','butter','cabbage',
-      'cake','cantaloupe','caramel','carrot','cashew','cauliflower','celery','cereal','cheddar','cheeseburger',
-      'cheesecake','cherry','chestnut','chicken','chili','chocolate','churro','cider','cinnamon','clam','coconut',
-      'coffee','cookie','corn','crab','cracker','cranberry','croissant','cucumber','cupcake','curry','custard',
-      'donut','dumpling','eggplant','espresso','falafel','fig','fondue','garlic','gelato','ginger','grape',
-      'grapefruit','guacamole','ham','hazelnut','honey','hummus','ice cream','jam','kebab','ketchup','kiwi',
-      'lasagna','lemon','lemonade','lentil','lettuce','lime','lobster','macaroni','mango','maple syrup',
-      'marshmallow','meatball','melon','milkshake','mint','muffin','mushroom','mustard','nacho','noodle','oatmeal',
-      'olive','omelette','onion','orange','oregano','oyster','pancake','papaya','pasta','pastry','peach','peanut',
-      'pear','peas','pecan','pepper','pepperoni','pickle','pie','pineapple','pistachio','pizza','plum','polenta',
-      'pomegranate','popcorn','potato','pretzel','praline','pudding','pumpkin','quesadilla','radish','raisin',
-      'ramen','raspberry','ravioli','rice','risotto','rosemary','saffron','salad','salsa','sandwich','sardine',
-      'sausage','scone','sesame','sherbet','shrimp','smoothie','sorbet','soup','spaghetti','spinach','steak',
-      'strawberry','sundae','sushi','taco','tamale','tangerine','tapioca','tea','thyme','tofu','tomato',
-      'tortilla','tuna','turkey','turnip','vanilla','venison','waffle','walnut','wasabi','watermelon','yogurt',
-      'zucchini'
-    ]
+  fr:{
+    mixed:['pomme','ancre','astronaute','avocat','sac à dos','ballon','banane','phare','vélo','couverture','boomerang','brocoli','papillon','cactus','caméra','feu de camp','bougie','canyon','carrousel','château','guépard','chocolat','boussole','biscuit','crocodile','couronne','diamant','dinosaure','dauphin','libellule','éclipse','éléphant','ascenseur','plume','feu d’artifice','flamant','lampe','fontaine','girafe','glacier','guitare','hamac','hérisson','hélicoptère','iceberg','iguane','île','méduse','kangourou','clavier','cerf-volant','koala','labyrinthe','lanterne','lavande','citronnade','léopard','bibliothèque','éclair','homard','aimant','mangue','guimauve','prairie','microscope','milkshake','montagne','champignon','collier','pieuvre','origami','autruche','pinceau','crêpe','parachute','manchot','ananas','pirate','pop-corn','porc-épic','pyramide','raton laveur','arc-en-ciel','rhinocéros','voilier','satellite','épouvantail','scorpion','hippocampe','ombre','squelette','gratte-ciel','flocon','fusée','spaghetti','écureuil','étoile de mer','fraise','sous-marin','tournesol','télescope','orage','tornade','trésor','trombone','tulipe','parapluie','licorne','volcan','gaufre','cascade','pastèque','moulin','magicien','xylophone','zèbre'],
+    animals:['aigle','alouette','âne','araignée','autruche','baleine','belette','blaireau','bœuf','bouc','brouillard','bufflon','cacatoès','caille','calamar','caméléon','chameau','canard','capybara','caribou','carpe','castor','cerf','chacal','chameau','chamois','chat','chauve-souris','cheval','chèvre','chien','chimpanzé','chinchilla','cigogne','cobaye','cochon','coccinelle','coq','corbeau','cormoran','crabe','crapaud','crevette','crocodile','daim','dauphin','dindon','dragon','écureuil','éléphant','élan','escargot','espadon','étourneau','faucon','fouine','furet','gazelle','geai','gerboise','girafe','goéland','gorille','grenouille','grue','guépard','guêpe','hamster','hérisson','héron','hibou','hippopotame','hirondelle','homard','honneur','hyène','iguane','impala','jaguar','kangourou','koala','lamantin','lapin','léopard','lézard','libellule','lièvre','lion','loup','loutre','lynx','macaque','maquereau','marmotte','méduse','merle','mésange','moineau','morse','mouche','mouette','mouton','mulet','mulot','narval','orque','ours','ouessant','panthère','paon','papillon','paresseux','pélican','perdrix','perroquet','phoque','pie','pigeon','pingouin','poisson','poney','porc','porc-épic','poule','poussin','puma','putois','python','rat','raton laveur','raie','renard','renne','requin','rhinocéros','rossignol','rouge-gorge','salamandre','sanglier','sardine','saumon','scarabée','scorpion','serpent','singe','souris','taupe','taureau','tigre','tortue','toucan','triton','truite','vache','veau','vautour','vipère','vison','zèbre'],
+    food:['abricot','ail','amande','ananas','anchois','artichaut','asperge','aubergine','avocat','bacon','baguette','banane','barbecue','beurre','bière','biscuit','bœuf','brioche','brocoli','cacahuète','café','caille','canard','cannelle','caramel','carotte','cerise','champignon','châtaigne','cheddar','chocolat','chou','citron','citronnade','clémentine','coco','concombre','confiture','coquillage','courgette','crabe','crème','crevette','croissant','curry','datte','endive','épinard','escargot','fève','figue','flan','fraise','framboise','fromage','fruit','galette','gâteau','gingembre','glace','gaufre','haricot','huile','huître','jambon','kiwi','lait','laitue','lapin','lentille','limonade','maïs','mangue','marron','melon','menthe','miel','moules','moutarde','mûre','navet','noisette','noix','nouille','olive','omelette','oignon','orange','origan','pain','pamplemousse','pâtes','pâtisserie','pêche','persil','petit pois','poire','pois','poivron','pomme','pomme de terre','porc','potiron','poulet','prune','purée','radis','raisin','riz','romarin','safran','salade','saumon','sauce','saucisse','sel','sirop','soupe','spaghetti','steak','sucre','tarte','thé','thon','thym','tomate','tortilla','truite','vanille','veau','vinaigre','yaourt','zeste'],
+    objects:['agrafeuse','aiguille','aimant','alarme','allumette','ampoule','ancre','anneau','appareil','armoire','arrosoir','aspirateur','assiette','baignoire','balance','balai','ballon','banquette','barbecue','baril','batterie','bâton','bébé','béquille','bijou','billet','bobine','boîte','bol','bonnet','botte','bouchon','bougie','boucle','bouilloire','boulon','bourse','bouton','bracelet','brosse','brouette','bureau','cadenas','cadre','cage','cahier','calculatrice','calendrier','caméra','canapé','canne','carnet','carpette','carte','carton','casier','casque','casquette','cassette','casserole','ceinture','chaîne','chaise','chandelle','chapeau','chargeur','charrette','chaussette','chemise','chemisier','chenille','chevalet','chiffon','ciseaux','clavier','clé','cloche','clou','coffre','colle','collier','compas','compteur','console','corde','cornet','costume','couette','coupelle','coussin','couteau','couvercle','couverture','craie','crayon','croix','cuillère','cuir','cuisine','culotte','dé','décoration','dentifrice','disque','dossier','drap','écran','écharpe','échelle','élastique','enveloppe','épée','éponge','équerre','escabeau','étiquette','éventail','façade','fenêtre','fer','feuille','ficelle','fichier','filet','filtre','flacon','flèche','flûte','fouet','fourchette','four','foyer','frein','frigo','fusée','gant','globe','gobelet','gomme','goulot','grille','guitare','hache','hameçon','hamac','harnais','horloge','housse','huile','imprimante','interrupteur','jante','jardin','jarre','jouet','journal','jupe','lampe','lampe de poche','lanterne','laptop','lave-linge','lave-vaisselle','lecteur','lentille','lettre','lime','linge','livre','loupe','lunettes','maillot','maillet','main','mallette','manteau','maquette','marque-page','marteau','masque','matelas','médaillon','mégaphone','métier','miroir','mitaine','montre','moule','mousse','moustiquaire','moulin','nappe','natte','navette','nettoyant','niveau','noeud','note','ordinateur','outil','ouvre-boîte','paille','pain','panier','panneau','pantalon','papier','parapluie','parasol','parchemin','parfum','passeport','passoire','patin','peigne','peinture','pelle','pelote','pendule','pneu','pince','pinceau','pipe','pistolet','placard','planche','planche à voile','planète','plante','plaque','plat','plateau','plume','pneu','poche','poêle','poignée','pointe','poire','poisson','poivre','pomme','pommeau','pompe','pont','portefeuille','porte','portemanteau','pot','poubelle','poupée','poutre','prise','projecteur','protège','pull','punaise','puzzle','pyjama','quille','raclette','radar','radio','rafale','rail','raquette','rasoir','râteau','rebord','récepteur','règle','réglisse','relais','remorque','réservoir','ressort','rétroviseur','réveil','revue','rideau','robinet','robot','roche','rondelle','roue','rouleau','ruban','sac','sacoche','sangle','savon','scie','seau','sèche-cheveux','selle','semelle','serrure','serviette','short','sifflet','sirène','ski','slip','socle','sonnette','soucoupe','soufflet','soulier','souris','spatule','spray','statue','stéthoscope','stylo','support','table','tablier','tabouret','tablette','tache','taille-crayon','talon','tambour','tampon','tapis','tasse','télécommande','téléphone','télévision','tenaille','tente','terrasse','thermomètre','ticket','tige','tilleul','timbre','tissu','tiroir','toile','toit','tôle','tombe','tondeuse','tonneau','torche','toupie','tournevis','tracteur','train','trampoline','trappe','trèfle','treuil','triangle','tricot','tricycle','tringle','trombone','trompette','tronc','trophée','trottoir','trousse','tube','tuyau','uniforme','urne','usine','ustensile','valise','valve','vanne','vase','veilleuse','vélo','ventouse','ventilateur','verre','verrou','veste','viande','vidéo','vielle','vigne','villa','violon','vis','visière','vitrine','voile','voiture','volant','wagon','xylophone','yaourt','yeux','zèbre','zip'],
+    nature:['abîme','affluent','aiguille','aube','aurore','avalanche','baie','banc','banquise','barrage','bassin','berge','bois','boue','branche','brise','brouillard','brume','butte','cascade','caverne','cap','canyon','champ','chenal','ciel','cime','cirque','clairière','col','colline','combe','comète','confluent','continent','corail','côte','courant','crâne','cratère','crête','crevasse','crique','cristal','culture','cygne','delta','désert','détroit','dune','écho','éclipse','écorce','écume','effondrement','élément','embouchure','érosion','estuaire','étang','étendue','étoile','falaise','faille','feuille','feu','fjord','flaque','fleuve','flore','flotte','forêt','fossé','foudre','source','frimas','front','gel','gelée','germe','glace','glacier','gorge','gouffre','graine','grêle','grotte','gué','havre','herbe','horizon','houle','île','îlot','inondation','isthme','jardin','jungle','lac','lagune','lande','lave','littoral','lotus','lumière','lune','marais','marée','mare','massif','méandre','mer','météore','midi','minéral','minuit','mist','mont','montagne','moraine','mousse','nuage','nuit','oasis','océan','ombre','orage','orée','ouragan','palier','palmier','pampa','parc','passage','paysage','pente','pétale','pic','pierre','plage','plaine','planète','plante','plateau','pluie','plume','pôle','pointe','pomme','pond','pont','prairie','précipice','presqu’île','printemps','promontoire','puits','racine','rafale','raie','rainure','rambarde','rapide','ravin','rayon','récif','récolte','reflet','refuge','région','remous','réserve','résine','ressac','reste','retombée','réverbère','rive','rivière','roc','roche','rocher','rosée','roue','ruisseau','sable','sablière','saison','sapin','savane','scorie','sécheresse','semence','sentier','série','sève','sol','soleil','sommet','souffle','source','sous-bois','steppe','surface','table','talus','tempête','temps','terrain','terre','terrier','tête','thème','thermique','tide','tombe','torrent','tourbe','tourbillon','traînée','trait','tranchée','tremblement','tronc','trou','tundra','typhon','vague','vallée','vallon','vapeur','végétation','veille','vent','versant','vert','verger','vestige','vigne','village','ville','vin','violette','volcan','zone'],
+    pop:['acteur','action','adversaire','aile','album','alien','allée','alliance','âme','amitié','amulette','ange','animal','anneau','arène','arme','armure','art','artiste','astéroïde','atlantide','attaque','aventure','avatar','baguette','balai','balle','bande','bannière','barque','base','bataille','bête','bijou','bloc','bombe','boss','bouclier','boule','bourrasque','bourse','boutique','branche','bras','bravo','breuvage','brume','bulle','but','cabane','cacahuète','cachot','cadre','cage','calme','camp','campagne','canon','cape','capitaine','carte','cascade','casque','chambre','champion','chance','chanson','chant','chapeau','chapitre','charge','chariot','charme','chasse','château','chef','chemin','chevalier','chien','chimère','choix','chose','chute','cible','ciel','cinéma','cercle','cirque','citadelle','classe','clé','climat','clone','club','coeur','coffre','colère','colline','combat','comédie','comète','commande','compagnon','compte','concept','concert','conflit','conquête','conseil','conte','continent','contrôle','coque','corbeau','corne','corps','costume','côte','courage','course','couronne','coutume','couverture','créature','crédit','crise','cristal','croix','croyance','crypte','cube','culte','cycle','dame','danger','danse','démon','départ','désert','destin','détective','développement','défi','diable','diamant','diapason','dictateur','dieux','dimension','dinosaure','directeur','disque','divinité','document','domaine','donjon','dragon','drapeau',' rêve','droits','duel','durée','dynamique','eau','écho','école','éclat','éclipse','économie','écran','écriture','édifice','effet','effort','église','élan','élément','élève','élite','ellipse','empire','énigme','ennemi','ensemble','entrée','entreprise','épée','épopée','époque','équipe','ère','erreur','escale','escalier','espace','espèce','esprit','essai','essence','est','état','étoile','étonnement','être','étude','événement','évolution','examen','exemple','exil','expérience','explosion','expression','extase','extérieur','extraordinaire','fabrique','face','facette','facteur','faille','faim','faire','fait','falaise','famille','fan','fantaisie','fantôme','farce','faune','faute','faux','faveur','favori','femme','fenêtre','fer','ferme','festival','feu','feuille','fiction','figure','fil','filet','film','fin','finale','flamme','flash','flèche','fleur','fleuve','flotte','flûte','flux','foi','folie','fond','fontaine','force','forêt','forme','fort','forteresse','fortune','fossé','fou','foudre','foule','four','fourmi','foyer','fracas','fragile','fragment','fraise','franc','frère','froid','front','frontière','fruit','fuite','fumée','furie','futur','gadget','gage','gain','galaxie','galerie','gamme','gang','garage','garde','gardien','gare','garçon','gâteau','gauche','géant','génie','genre','gens','geste','gibier','glace','glaive','globe','gloire','gobelin','golfe','gorge','goût','goutte','grâce','grade','grain','grand','grange','graphe','gras','gratte-ciel','grave','gravité','grenade','griffe','grille','gris','gros','groupe','guerre','guerrier','guide','guilde','guitare','habile','habit','habitude','hache','haie','haine','haleine','hall','halte','hamac','hanche','hangar','haricot','harmonie','harnais','harpe','hasard','hâte','hausse','haut','hauteur','héros','heure','heurter','hibou','histoire','hiver','homme','honneur','honte','hôpital','horizon','horloge','horreur','hors','hôtel','houle','huile','humain','humour','idée','île','illusion','image','imagination','impact','impérial','empire','importance','impression','incident','inconnu','index','indice','industrie','infini','influence','info','ingénieur','initial','initiative','injure','innocent','insecte','instant','instinct','instruction','instrument','insulte','intelligence','intense','intention','intérêt','intérieur','interlude','intermède','international','internet','interprétation','interrogatoire','intervalle','intervention','interview','intime','intrigue','introduction','invasion','invention','inverse','investigation','invitation','invité','ironie','irréel','issue','item','itinéraire','ivoire','ivre','jacquet','jadis','jaloux','jamais','jambe','janvier','jardin','jarre','jaune','jazz','jet','jeu','jeudi','jeune','jeunesse','joie','joint','joli','jouer','joueur','jouet','jour','journal','journée','juge','jugement','juillet','juin','jumeau','jungle','jupe','jurer','jury','juste','justice','kaki','karaoké','karma','kayak','kilo','kilomètre','kiosque','kiwi','koala','labirinthe','lac','lacet','lâche','lacune','laine','lait','lame','lampe','lance','lancer','langage','langue','lanterne','lapin','large','larme','laser','latin','lave','laver','légal','léger','légende','légume','lent','lentement','lentille','léopard','lettre','lever','lèvre','lézard','libération','liberté','libre','licence','lien','lier','lieu','ligne','ligue','lilas','limite','limonade','linge','lion','liquide','lire','liste','lit','litre','livre','livrer','local','locataire','logement','logique','loi','loin','loisir','long','longtemps','longueur','look','lord','lors','lot','loterie','louche','loup','lourd','loyer','lucarne','lucide','luciole','lugubre','lumière','lunaire','lundi','lune','lunette','lustre','lutte','luxe','lynx','machine','madame','mademoiselle','magasin','magazine','magie','magicien','magnifique','mail','maille','main','maintenant','maintenir','maire','mais','maison','maître','majesté','majeur','mal','malade','maladie','malchance','mâle','malgré','malheur','malice','malin','malle','malo','maman','manche','mandat','manège','manger','manifestation','manière','manipuler','mannequin','manœuvre','manque','manquer','manuel','manufacture','manuscrit','map','maquette','marais','marbre','marchand','marchandise','marche','marché','marcher','mardi','marée','marge','mari','mariage','marin','marine','marionnette','maritime','marque','marquer','marqueur','marquis','marron','mars','marteau','martial','martyr','mascotte','masque','massacre','masse','massif','mat','matelas','matériel','mathématique','matière','matin','matinée','maturité','maudit','mauvais','maxime','maximum','mécanique','mécanisme','méchant','médecin','médecine','média','médical','médicament','médiéval','méditation','médiocre','méfait','méfiance','méfier','mégaphone','meilleur','mélange','mélanger','mélancolie','mêler','mélodie','melon','membre','même','mémoire','menace','menacer','ménage','mendiant','mener','mensonge','menteur','mention','mentionner','mentir','menton','menu','menuet','mer','merci','mercredi','mère','mérite','mériter','merveille','merveilleux','message','messager','messe','mesure','mesurer','métal','métaphore','météo','météore','météorite','méthode','métier','mètre','métro','métropole','mettre','meuble','meurtre','meurtrier','midi','miel','mieux','migration','milieu','militaire','mille','milliard','million','mime','mince','mine','minerai','minéral','minet','mini','minime','minimum','ministère','ministre','minuit','minute','miracle','mirage','miroir','misérable','misère','mission','mystère','mystérieux','mythique','mythologie','mythe','naïf','naissance','naître','naïveté','nappe','narcisse','narration','narrateur','natal','natation','nation','national','nationalité','nature','naturel','naufrage','navet','naviguer','navire','né','néanmoins','néant','nécessaire','nécessité','néfaste','négation','négatif','négliger','négociation','négocier','nègre','neige','neiger','nerf','nerveux','net','nettement','nettoyer','neuf','neutralité','neutre','neveu','nez','ni','niais','niche','nid','nièce','nier','nigeria','nippon','niveau','noble','noblesse','noce','nocif','nocturne','noël','nœud','noir','noirceur','noircir','noise','noix','nom','nombre','nombreux','nommer','non','nord','normal','normale','norme','notable','notaire','notamment','note','noter','notice','notion','notoire','notre','nouer','nougat','nourrir','nourriture','nous','nouveau','nouveauté','nouvel','nouvelle','novembre','noyau','noyer','nu','nuage','nuageux','nuance','nuire','nuisible','nuit','nul','numéro','numérique','nuptial','nyctalope','nylon','nymphe','oasis','obéir','obéissance','obélisque','obèse','objectif','objet','obligation','obligatoire','obliger','obscur','obscurité','obsèques','observateur','observation','observer','obsession','obstacle','obstiné','obtenir','obturateur','occasion','occasionnel','occident','occidental','occupation','occuper','océan','océano','ocre','octobre','oculaire','ode','odeur','odieux','odyssée','œil','œuf','œuvre','offense','offenser','offensif','offensive','office','officiel','officier','offre','offrir','ogre','oiseau','oisif','oléoduc','oligarchie','olive','olympique','ombre','ombrage','omelette','omission','omettre','onde','ondulation','ongle','onze','opaque','opéra','opération','opérateur','opérer','opinion','opium','opportun','opportunité','opposé','opposer','opposition','oppresseur','oppression','opprimer','opter','opticien','optique','optimisme','optimiste','option','or','oracle','orage','orageux','oral','orange','oranger','orateur','orbite','orchestre','ordinaire','ordonnance','ordonner','ordre','oreille','oreiller','orfèvre','organe','organique','organisation','organiser','organisme','orgueil','orgue','orient','oriental','orientation','orienter','origami','origine','original','originalité','oripeau','orme','ornement','orphelin','ortie','os','osciller','oser','osselet','ossature','otage','ôter','ou','où','ouais','ouate','oubli','oublier','ouest','ouf','oui','ouïe','ouïr','ours','ourson','outil','outrage','outrager','outre','outrecuidant','ouverture','ouvrage','ouvrier','ouvrir','ovaire','ovale','ovation','ovule','oxygène','ozone','pacage','pacte','paf','page','pagne','paie','paiement','païen','paille','paillette','pain','pair','paire','paix','palace','palais','pâle','palet','palette','palier','palissade','palmarès','palme','palmier','palper','palpitant','pampa','pamphlet','pan','panache','panama','pancarte','pandémie','panier','panique','panneau','panorama','pansement','pantalon','panthéon','panthère','pantin','pantoufle','paon','pape','papier','papillon','papyrus','paquet','par','parabole','parachutage','parachute','parade','paradis','paradoxe','parafe','paragraphe','parallèle','paralyser','paralysie','paramètre','parapluie','parasite','parasol','parc','parcelle','parchemin','parcourir','parcours','pardon','pardonner','pare','pareil','parent','parenté','parenthèse','parer','parfum','parfumer','pari','parier','parisien','parka','parler','parmi','parodie','parole','parquet','parrain','parricide','part','partage','partager','partenaire','partenariat','parterre','parti','partial','participant','participer','particule','particulier','partie','partiel','partir','partisan','partition','partout','parure','parvenir','pas','passage','passager','passant','passé','passe','passeport','passer','passereau','passerelle','passe-temps','passion','passionné','passoire','passif','pastèque','pasteur','pastille','pastoral','pâte','pâté','patent','patente','paternel','pathétique','pathologie','patience','patient','patiner','patinoire','pâtisserie','pâtissier','patois','pâtre','patrie','patrimoine','patriotisme','patron','patrouille','patte','pâturage','pâture','paume','paupière','pause','pauvre','pauvreté','pavé','pavillon','pavot','payant','payer','pays','paysage','paysan','péage','peau','pêche','pêcheur','pédagogie','pédale','pédant','pédestre','pédiatre','pédicure','pédot','pégase','peigne','peigner','peindre','peine','peiner','peintre','peinture','péjoratif','pêle-mêle','pèlerin','pèlerinage','pelle','pelleteuse','pellicule','peloton','pelouse','peluche','penchant','pencher','pendant','pendre','pendule','pénétrer','pénible','pénicilline','péninsule','pénitence','pénitentiaire','penne','pensée','penser','penseur','pension','pensionnaire','pente','penthouse','pentode','pénurie','pépite','perce','percer','perceuse','perche','percher','perdre','perdu','père','perfection','perfectionner','perfide','performance','performant','perfuser','péri','péril','périlleux','périmètre','période','périodique','périphérie','périr','périscope','perle','permanence','permanent','permettre','permis','permission','permutateur','permutation','permuter','pernicieux','péroné','perpendiculaire','perpétuel','perpétuer','perplexité','perquisition','perron','persécuter','persécution','persévérance','persévérer','persienne','persil','persister','personnage','personnel','personne','personnifier','perspective','perspicace','persuader','persuasion','perte','pertinent','perturbation','perturber','pervers','perversion','pesage','pesant','peser','peseur','pessimisme','pessimiste','peste','pesticide','pestilence','pétale','pétard','pétanque','pétillant','pétiller','petit','pétition','pétrole','pétrolier','pétrolifère','pétulance','peu','peuple','peupler','peuplier','peur','peut','peut-être','phare','pharmacie','pharmacien','phase','phénomène','philanthrope','philatélie','philosophe','philosophie','phobie','phoque','phosphate','photo','photocopie','photographe','photographie','phrase','physicien','physique','pianiste','piano','pic','pichet','picorer','pièce','pied','piège','pierre','piété','pieu','pieux','pigeon','pignon','pile','piler','pilier','pillage','pillard','pilule','piment','pince','pinceau','pincement','pincer','pingouin','pinot','pinte','piocher','pion','pionnier','pipe','pipeline','piquant','pique','piquer','piquet','pirate','piraterie','pire','pirouette','pis','piscine','piste','pistolet','piston','pitié','piton','pittoresque','pivot','pivoter','placard','place','placement','placer','plage','plaider','plaidoirie','plaie','plaindre','plaine','plainte','plaintif','plaire','plaisance','plaisant','plaisanter','plaisir','plan','planche','plancher','plancton','planète','planification','planifier','planning','plant','plantation','plante','planter','plaque','plaquette','plasma','plastique','plat','plateau','plateforme','plâtre','plein','pleurer','pleurésie','pleurs','pleuvoir','pli','pliage','plier','plomb','plomberie','plombier','plongeoir','plonger','plongeur','pluie','plume','plumeau','plumer','plupart','pluriel','plus','plusieurs','plutôt','pneu','pneumatique','pneumonie','poche','pochette','pod','podium','poème','poésie','poète','poids','poignant','poignard','poignée','poignet','poil','poilu','poinçon','poing','point','pointe','pointer','pointilleux','pointu','poison','poisson','poitrine','poivre','poivron','polaire','polarité','pôle','police','policier','poliment','polir','politesse','politique','pollen','polluer','pollution','polo','poly','polyvalent','pommade','pomme','pommeau','pompier','pompon','ponctualité','ponctuel','ponctuer','pondération','pondérer','pondre','pont','ponte','pop','populaire','popularité','population','porc','porcelaine','porc-épic','pore','porno','port','portable','portail','portant','porte','portée','porte-monnaie','porter','portefeuille','porteur','portière','portion','portrait','portuaire','pose','poser','positif','position','posséder','possession','possibilité','possible','postal','postdater','poste','poster','postérieur','postérité','postface','posthume','postiche','postier','postuler','posture','pot','potable','potage','potager','potassium','poteau','potée','potence','potentiel','poterie','potier','potion','pou','poubelle','pouce','poudre','pouf','poulailler','poulain','poule','poulet','pouliche','poulie','poulpe','pouls','poumon','poupée','pour','pourboire','pourceau','pourcentage','pourquoi','pourri','pourrir','pourriture','poursuite','poursuivre','pourtant','pourtoir','pourtour','pourvoir','pourvoi','pourvu','poussée','pousser','poussière','poussin','poutre','pouvoir','prairie','praline','praticien','pratique','pratiquer','pré','préalable','préambule','préavis','précaution','précédent','précéder','précepte','précieux','précipice','précipitation','précipiter','précis','précision','précoce','préconiser','précurseur','prédécesseur','prédéterminer','prédiction','prédire','prédisposer','prédominant','prédominer','préface','préfecture','préférable','préférence','préférer','préfet','préfixe','préhistoire','préjudice','préjugé','préliminaire','prématuré','préméditer','premier','prémisse','prémonition','prénom','préoccupation','préoccuper','préparatif','préparation','préparer','prépondérant','préposition','prérequis','prérogative','présage','presbyte','prescrire','prescription','présence','présent','présentation','présenter','préservatif','préserver','présidence','président','présider','présomption','présomptueux','presque','pressant','presse','pressé','presser','pression','pressurage','prestation','prestige','prestigieux','présumer','présupposer','prêt','prétendant','prétendre','prétendu','prétention','prétentieux','prêter','prétexte','prêtre','preuve','prévaloir','prévenir','préventif','prévention','prévision','prévoir','prévôt','prévu','prier','prière','prieur','primaire','primat','primauté','prime','primer','primeur','primitif','primordial','prince','princesse','principal','principe','printanier','printemps','prioritaire','priorité','prise','priser','prison','prisonnier','privation','priver','privilège','privilégier','prix','pro','probable','probablement','probation','probe','problématique','problème','procédé','procéder','procédure','procès','processus','prochain','proche','proclamation','proclamer','procurer','procureur','prodige','prodigieux','prodiguer','producteur','productif','production','productivité','produire','produit','profanation','profaner','professeur','profession','professionnel','professori','profil','profiler','profit','profitable','profiter','profond','profondeur','programme','programmer','progrès','progresser','progressif','progression','prohibition','prohiber','projet','projeter','projecteur','projection','prolétaire','proliférer','prolifique','prolongation','prolonger','promenade','promener','promeneur','promesse','prometteur','promettre','promontoire','promoteur','promotion','prompt','promptement','promu','pronom','prononcer','prononciation','pronostic','propagande','propagation','propager','propension','prophète','prophétie','propice','proportion','proportionnel','propos','proposer','proposition','propre','propreté','propriétaire','propriété','propulsion','proroger','prosaïque','proscrit','prose','prospectus','prospère','prospérer','prospérité','prostituée','prostitution','prostration','protecteur','protection','protéger','protéine','protestation','protester','protocole','proton','prototype','prouesse','prouver','provenance','provenir','proverbe','providence','providentiel','province','provincial','provision','provisoire','provocation','provoquer','proximité','prude','prudence','prudent','prune','pruneau','psaume','pseudonyme','psychiatre','psychiatrie','psychique','psychologie','psychologique','psychologue','psychose','puant','pub','pubère','puberté','public','publication','publicitaire','publicité','publier','pudding','pudeur','pudique','puer','puéril','puff','puis','puisque','puissance','puissant','puits','pull','pulluler','pulmonaire','pulpe','pulsation','pulseur','pulsion','pulvériser','punaise','punique','punir','punition','pupille','pupitre','pur','purée','pureté','purgatoire','purge','purger','purification','purifier','purisme','puritain','puzzle','pyjama','pyramide','pyromane','quadrilatère','quadrupède','quai','qualificatif','qualification','qualifier','qualitatif','qualité','quand','quantitatif','quantité','quarantaine','quarante','quart','quartier','quasi','quatorze','quatre','quatrième','quatuor','quai','quel','quelconque','quelque','quelquefois','quelqu’un','quémander','quenelle','querelle','quereller','question','questionnaire','quête','queue','qui','quiconque','quidam','quiet','quiétude','quille','quinaud','quinconce','quinine','quintessence','quintet','quintuple','quinze','quittance','quitter','quoi','quoique','quorum','quota','quotidien','quotient','rabais','rabattre','rabbin','rabiot','rabot','raboter','rabougri','racaille','raccommoder','raccord','raccorder','raccourci','raccourcir','race','rachat','racheter','rachis','racine','racisme','raciste','rack','raclure','racontar','raconter','radar','rade','radeau','radia','radiateur','radiation','radical','radier','radieux','radio','radioactif','radis','radium','radius','raffermir','raffiné','raffinement','raffiner','raffinerie','rafale','rafraîchir','rafraîchissement','ragondin','ragoût','raid','raide','raideur','raidir','rail','railler','raillerie','rainure','raisin','raison','raisonnable','raisonnement','raisonner','rajeunir','rajouter','ralentir','ralentissement','ralliement','rallier','rallonge','rallonger','rallumer','ramasser','ramassage','rame','rameau','ramener','ramer','rameur','ramification','ramifier','ramollir','rampe','ramper','rance','rançon','rançonner','rang','rangée','ranger','ranimer','rapace','rapatriement','rapatrier','râpe','râper','rapide','rapidement','rapidité','rapiécer','rappel','rappeler','rapport','rapporter','rapporteur','rapprochement','rapprocher','raquette','rare','raréfaction','raréfier','rarement','rareté','ras','rasage','raser','rasoir','rassemblement','rassembler','rassasier','rassembler','rasseoir','rassurant','rassurer','rat','ratatiné','raté','râteau','râtelier','rater','ratification','ratifier','ration','rationaliser','rationnel','rationner','ratissage','ratisser','raton','rattacher','rattraper','rattrapage','rauque','ravage','ravager','rave','ravi','ravin','ravir','ravissant','ravissement','ravitaillement','ravitailler','raviver','rayer','rayon','rayonnage','rayonnement','rayonner','rayure','réactif','réaction','réactionnaire','réagir','réalisation','réaliser','réalisme','réaliste','réalité','réanimation','réanimer','réapparaître','réapparition','réarmement','réarmer','réassigner','réassurance','réassurer','rebaptiser','rébâtir','rebelle','rebeller','rébellion','rebond','rebondir','rebondissement','rebord','rebrousser','rebuffade','rebus','rebut','rebuter','recadrer','récalcitrant','récapitulatif','récapituler','recaser','recensement','recenser','récent','récemment','réceptacle','récepteur','réception','réceptionniste','réceptivité','recette','recevable','receveur','recevoir','rechange','recharger','réchauffement','réchauffer','recherche','rechercher','rechute','récidive','récidiver','récif','récipient','réciprocité','réciproque','récit','récital','récitant','réciter','réclamation','réclamer','reclus','reclusion','récolement','récolte','récolter','recommandable','recommandation','recommander','recommencement','recommencer','récompense','récompenser','réconcilier','réconciliation','reconduire','réconfort','réconfortant','réconforter','reconnaissance','reconnaissant','reconnaître','reconnu','reconquête','reconquérir','reconstruction','reconstruire','recopier','record','recours','recouvrement','recouvrer','recouvrir','récréatif','récréation','récrier','récrire','récupération','récupérer','récurrence','récurrent','récusation','récuser','rédacteur','rédaction','reddition','redemander','rédempteur','rédemption','redescendre','redevenir','rédiger','redingote','redistribution','redonner','redorer','redoutable','redouter','redressement','redresser','réducteur','réduction','réduire','réduit','réédification','réélection','réélire','réel','réellement','réemploi','réemployer','réenchantement','réenchanter','réengager','réentendre','rééquilibrage','rééquilibrer','réécriture','réexamen','réexpédier','réfaction','réfectoire','référendum','référer','réfléchi','réfléchir','réflecteur','réflexe','réflexion','réforme','réformer','réfractaire','réfraction','refrain','réfrigérateur','réfrigération','refuge','réfugié','refus','refuser','réfutation','réfuter','regagner','régal','régaler','regard','regarder','régénération','régénérer','régent','régie','régime','régiment','région','régional','régir','régisseur','registre','réglage','règle','règlement','réglementaire','réglementation','réglementer','régler','réglisse','régnant','régner','régression','regret','regrettable','regretter','régularisation','régulariser','régularité','régulier','régulièrement','régulation','régulateur','réhabilitation','réhabiliter','réhabituer','rehausser','réimportation','réimposer','réimpression','réimprimer','rein','reine','réinsertion','réinstaller','réintégration','réintégrer','réintroduire','réinvestissement','réinvestir','réitération','réitérer','rejet','rejeter','rejeton','rejoindre','relâche','relâchement','relâcher','relais','relance','relancer','relaps','relation','relationnel','relatif','relation','relaxation','relaxer','relayer','relégation','reléguer','relent','relève','relever','relief','reliure','relier','religieux','religion','relique','relire','reliure','relocation','relouer','reluire','reluisant','remaniement','remanier','remariage','remarier','remarquable','remarque','remarquer','remblai','remblayer','rembourrage','rembourrer','remboursement','rembourser','remède','remédier','remémorer','remerciement','remercier','remettre','remise','remorquage','remorque','remorquer','remous','rempart','remplaçant','remplacement','remplacer','rempli','remplir','remplissage','remport','remporter','remuant','remue-ménage','remuer','rémunération','rémunérer','renard','renaissance','renaître','renaud','renchérir','renchérissement','rencontre','rencontrer','rendement','rendez-vous','rendre','rendu','renégat','renégocier','renfermer','renflouer','renforcement','renforcer','renfort','renfrogné','rengaine','renier','renifler','renne','renom','renommé','renommée','renoncement','renoncer','renonciation','rénovation','rénover','renseignement','renseigner','rentabilité','rentable','rente','rentier','rentrée','rentrer','renverse','renversement','renverser','renvoi','renvoyer','réorganisation','réorganiser','réouverture','repaire','réparation','réparer','répartir','répartition','repas','repassage','repasser','repêcher','repentir','repérage','repère','repérer','répertoire','répertorier','répétition','répéter','repeupler','répit','replacer','replanter','repli','replier','réplique','répliquer','replonger','répondant','réponse','report','reportage','reporter','repos','reposant','reposer','repoussant','repousser','reprendre','représailles','représentant','représentation','représenter','répression','réprimer','reprise','réprobation','reproche','reprocher','reproduction','reproduire','reproduit','réprouver','reptile','républicain','république','répudiation','répudier','répugnance','répugnant','répugner','réputation','requête','requiem','requin','requis','réquisition','réquisitionner','rescapé','rescousse','rescrit','réseau','réservation','réserver','réservoir','résidence','résident','résider','résidu','résiduel','résignation','résigné','résigner','résiliation','résilier','résine','résineux','résistance','résistant','résister','résolu','résolution','résolvant','résoudre','résonance','résonner','résorption','résoudre','respect','respectable','respecter','respectif','respectueux','respirable','respiration','respiratoire','respirer','resplendir','resplendissant','responsabilité','responsable','ressac','ressaisir','ressasser','ressaut','ressayer','ressemblance','ressembler','ressenti','ressentiment','ressentir','resserrer','ressort','ressortir','ressource','ressources','ressusciter','ressuscitation','restant','restauration','restaurer','reste','rester','restituer','restitution','restreint','restreindre','restrictif','restriction','résultat','résultante','résulter','résumé','résumer','résurgence','résurrection','rétablir','rétablissement','retaille','retailler','retape','retard','retardataire','retarder','rétention','retenir','retenue','réticence','réticent','rétif','rétine','retiré','retirement','retirer','retombée','retomber','retordre','retorquer','retors','retouche','retoucher','retour','retourner','retracer','rétractation','rétracter','rétraction','retrait','retraite','retraité','retrancher','rétrécir','rétrécissement','rétribuer','rétribution','rétro','rétroactif','rétroaction','rétrograde','rétropédaler','rétrospective','retrouvailles','retrouver','rets','réuni','réunification','réunifier','réunion','réunir','réussir','réussite','revanche','rêve','réveil','réveiller','réveillon','révélation','révéler','revenant','revendication','revendiquer','revendre','revenir','revenu','rêver','réverbération','réverbère','révérer','révérence','révérend','réversibilité','réversible','réversion','révêtement','revêtir','rêveur','révision','révisionnisme','réviser','revivre','révocable','révocation','revoir','révolte','révolté','révolter','révolution','révolutionnaire','révolutionner','révoquer','revue','rez-de-chaussée','rhinocéros','rhombe','rhubarbe','rhume','rythme','rythmer','riant','ribambelle','riche','richesse','ricocher','ricochet','ride','ridé','rideau','ridicule','ridiculiser','rien','rieur','rigide','rigidité','rigolade','rigoler','rigole','rigolo','rigoureux','rigueur','rime','rimer','rincer','rinçage','ripaille','riposte','riposter','rire','risée','risible','risque','risquer','risqué','rit','rite','rituel','rivage','rival','rivaliser','rivalité','rive','riverain','rivière','rixe','riz','robe','robinet','robot','robotique','robuste','robustesse','roc','rocaille','rocailleux','roche','rocher','rococo','rôder','rôdeur','rodéo','rogne','rogner','rogue','roi','roitelet','rôle','romain','roman','romantique','romantisme','rompre','rompu','ronce','rond','ronde','rondeur','rondin','ronflement','ronfler','ronger','ronronnement','ronronner','roque','rosace','rose','rosé','roseau','rosée','roseraie','rosette','rosier','rossignol','rot','rotation','rotatif','rotatoire','rote','rôti','rôtir','rôtisserie','rotule','roue','rouage','roucouler','roue-libre','rouge','rougeâtre','rougeole','rougir','rouille','rouiller','rouleau','rouler','roulette','roulis','roulotte','roumain','roupillon','rousseur','roustons','route','routier','routine','rouvrir','royal','royalisme','royauté','ruban','rubis','rubrique','ruche','rude','rudesse','rudimentaire','rue','ruée','ruelle','rugby','rugir','rugissement','rugosité','rugueux','ruine','ruiner','ruineux','ruisseau','ruisseler','rumeur','rune','rupture','rural','ruse','ruser','russe','rustique','rustre','rut','rutabaga','rythmé','rythmique','sabbat','sable','sabler','sablier','sablonneux','sabord','sabot','sabotage','saboter','saboteur','sabre','sac','saccade','saccager','saccharine','sacoche','sacré','sacrément','sacrifice','sacrifier','sacrilège','sacristain','sacristie','sage','sagement','sagesse','saignant','saignement','saigner','saillie','saillant','saillir','sain','saint','sainteté','saisie','saisir','saisissant','saison','saisonnier','salade','salage','salaire','salaison','salamandre','salarié','sale','salé','saler','saleté','saligaud','salin','saline','salir','salive','saliver','salle','salon','salope','salopette','saluer','salut','salutation','salve','samedi','sanatorium','sanctuaire','sandale','sang','sanglant','sangle','sanglier','sanglot','sangloter','sanguinaire','sanguin','sanitaire','sans','santé','sapin','saphir','sarbacane','sarcasme','sarcastique','sarcler','sardine','sardonique','satiété','satire','satirique','satisfaction','satisfaire','satisfait','saturer','saturation','samedi','sauces','saucisse','saucisson','sauf','sauge','saule','saumon','saumure','sauna','saut','sauter','sauterelle','sauteur','sauvage','sauvagement','sauvegarde','sauvegarder','sauver','sauvetage','sauveteur','sauveur','savane','savant','savate','saveur','savoir','savon','savonner','savonnerie','savonnette','savoureux','savourer','scabreux','scalpel','scandale','scandaleux','scander','scanner','scaphandre','scarabée','scarlatine','scène','scénario','scénariste','scepticisme','sceptique','schéma','schisme','schiste','schizophrénie','sciage','scie','sciemment','scier','scierie','scintillant','scintiller','scission','sciatique','scolaire','scolarité','scolopendre','scooter','scorbut','scorie','scorpion','scout','scouts','scribe','script','scriptorium','scrupule','scrupuleux','scrutin','sculpter','sculpteur','sculpture','se','séance','séant','seau','sébile','sec','sèche','sécher','sécheresse','séchoir','second','secondaire','seconde','seconder','secouer','secousse','secourir','secours','secret','secrétaire','secrétariat','sécréter','sécrétion','sectaire','secte','secteur','section','séculaire','sécurité','sédatif','sédentaire','sédiment','sédimentaire','séduction','séduire','séduisant','segment','ségrégation','seigle','seigneur','seigneurial','sein','seize','séjour','séjourner','sel','sélection','sélectionner','selle','sellerie','sellette','selon','semaine','semaille','semaine','semence','semer','semestre','semi','semis','semoir','semoule','sénat','sénateur','séné','sénile','sens','sensass','sensations','sensé','sensibilité','sensible','sensiblement','sensitif','sensitive','sensoriel','sensualité','sensuel','sentence','sentier','sentiment','sentimental','sentir','séparation','séparé','séparément','séparer','sept','septembre','septentrional','septième','sépulcre','sépulture','séquelle','séquence','séquestration','séquestrer','séquoia','sérénade','sérénité','serein','série','sérieux','seringue','serment','sermon','serpe','serpent','serpenter','serpentine','serre','serrer','serrure','serrurerie','serrurier','sertir','sertissage','servante','serveur','serviable','service','serviette','servile','servir','serviteur','servitude','session','seuil','seul','seulement','sève','sévère','sévérité','sévices','sexe','sexisme','sexiste','sexualité','sexuel','shampooing','short','show','sibérie','sicile','sidéral','sidération','siècle','siège','sieste','siffler','sifflet','siffleur','signal','signalement','signaler','signalétique','signalisation','signature','signe','signer','signifiant','signification','signifier','silence','silencieux','silex','silhouette','sillon','sillonner','silo','simagrée','similaire','similarité','simili','simple','simplement','simplicité','simplification','simplifier','simulation','simuler','simultané','simultanément','sinapisme','sincère','sincèrement','sincérité','singe','singerie','singularité','singulier','sinistre','sinon','sinueux','sinus','sinusite','siphon','sirène','sirop','sis','site','situation','situer','six','sixième','ski','skier','skieur','slalom','slave','slip','slogan','smoking','snack','snob','snobisme','sobre','sobriété','soc','sociable','social','socialisme','socialiste','société','sociologie','sociologue','socle','sodium','sœur','sofa','soi','soie','soif','soigné','soigner','soigneur','soin','soir','soirée','soit','soixante','sol','solaire','soldat','solde','solder','sole','soleil','solennel','solennité','solfège','solidaire','solidarité','solide','solidifier','solidité','solitaire','solitude','solive','sollicitation','solliciter','solo','soluble','solution','solvable','solvant','sombre','sombrer','sommaire','sommation','somme','sommeil','sommeler','sommelier','sommet','sommité','somnifère','somnolence','somnoler','somptueux','son','sonate','sondage','sonde','sonder','songe','songer','sonner','sonnerie','sonnette','sonore','sonorité','sophisme','sophistiqué','sophrone','sorbet','sorcellerie','sorcier','sorcière','sordide','sorgho','sort','sorte','sortie','sortilège','sortir','sot','sottise','sou','soubresaut','souche','souci','soucier','soucieux','soucoupe','soudain','soudainement','soudage','soude','souder','soudeur','soudure','souffle','souffler','soufflet','souffleur','souffrance','souffrant','souffre','souffrir','souhait','souhaitable','souhaiter','souiller','souillure','soûl','soulagement','soulager','soûlant','soûler','soulèvement','soulever','soulier','souligner','soumettre','soumis','soumission','soupape','soupçon','soupçonner','soupçonneux','soupe','soupir','soupirail','soupirant','soupirer','souple','souplesse','source','sourcil','sourd','sourdine','souriant','sourire','souris','sournois','sous','sous-bois','sous-chef','sous-comité','sous-cutané','sous-directeur','sous-entendre','sous-entendu','sous-estimé','sous-estimer','sous-marin','sous-officier','sous-préfet','sous-produit','sous-sol','sous-titre','soustraction','soustraire','sous-traitant','sous-traiter','sous-vêtement','soutane','soutenir','soutenu','souterrain','soutien','soutirer','souvenir','souvent','souverain','souveraineté','soya','spaghetti','spatial','spécial','spécialiste','spécialité','spécialisation','spécialiser','spécification','spécifier','spécimen','spécifique','spectacle','spectaculaire','spectateur','spectre','spéléologie','sphère','sphérique','sphinx','spécial','spinal','spirale','spiritualité','spirituel','spiritueux','splendeur','splendide','spongieux','spontané','spontanéité','spontanément','sport','sportif','sportive','spot','sprint','sprinter','square','squelette','squale','squatter','stabilité','stabilisateur','stabiliser','stable','stade','stage','stagiaire','stagnation','stagner','stalle','stance','stand','standard','stase','station','stationnaire','stationnement','stationner','statique','statistique','statuaire','statue','statuette','statut','stèle','sténographie','stérile','stérilisation','stériliser','sternum','stéthoscope','stigmate','stimulant','stimulation','stimuler','stipuler','stock','stockage','stocker','stoïque','stoïcisme','stop','stopper','store','strapontin','stratège','stratégie','stratégique','stratosphère','strict','strictement','strident','structure','structurer','studieux','studio','stupéfaction','stupéfait','stupéfiant','stupéfier','stupeur','stupide','stupidité','style','stylo','suaire','suave','subalterne','subconscient','subdivision','subir','subit','subitement','subjectif','subjectivité','subjonctif','subjuguer','sublimation','sublime','submerger','submersible','submersion','subordonné','subordonner','suborner','sub rosa','subsidence','subsidiaire','subsistance','subsister','substance','substantiel','substantif','substituer','substitution','subtil','subtilité','subvention','subventionner','subversif','subversion','subvertir','suc','succéder','succès','successeur','successif','succession','successivement','succinct','succomber','succube','succulent','sucer','sucre','sucré','sucrer','sucrerie','sud','sudiste','suède','suédois','suer','sueur','suffire','suffisamment','suffisance','suffisant','suffixe','suffocation','suffoquer','suffrage','suggérer','suggestion','suicide','suicider','suie','suif','suintement','suinter','suisse','suite','suivant','suivante','suivi','suivre','sujet','sulfate','sulfure','sultan','super','superbe','superficie','superficiel','superflu','supérieur','supérieurement','supériorité','superlatif','supermarché','superposer','superposition','superpuissance','superstition','superstitieux','superviser','supervision','suppléant','supplément','supplémentaire','suppléer','suppliant','supplication','supplier','support','supportable','supporter','supposé','supposer','supposition','suppression','supprimer','suppurations','suppurer','suprématie','suprême','sur','sûr','surabondance','surabondant','surajouter','suranné','suraigu','surarmement','surarmer','surbaissé','surbooking','surchargé','surcharge','surcharger','surconscient','surconsommation','surcoût','surdité','sureau','surélever','surélévation','surendettement','surendetter','surenchère','surenchérir','surestimation','surestimer','sûrement','sûreté','surface','surfaire','surfaix','surfeur','surfiler','surgir','surgis','surhomme','surhumain','surimposer','surinfection','surinformer','surintendant','surinvestissement','surinvestir','surjaillir','surlendemain','surligner','surmenage','surmené','surmener','surmonter','surmoulage','surnager','surnaturel','surnom','surnommer','surnombre','surnuméraire','suroît','surpayer','surpeuplé','surpeuplement','surpeupler','surpoids','surprenant','surprendre','surpris','surprise','surproduction','surprotéger','surréalisme','surréaliste','surréel','surrégime','surréservation','surréserver','sursis','sursaut','sursauter','surtaxer','surteint','surterre','surtout','surveillance','surveillant','surveiller','survenance','survenir','survie','survivant','survivre','survol','survoler','sus','susceptibilité','susceptible','susciter','susdit','suspect','suspecter','suspendre','suspendu','suspens','suspense','suspension','suspicion','sustenter','suture','svelte','sybarite','sycomore','syllabe','syllabus','sylvestre','symbole','symbolique','symboliser','symétrie','symétrique','sympathie','sympathique','sympathiser','symphonie','symptôme','synagogue','synapse','synchronisation','synchroniser','synchrone','syndicat','syndical','syndic','syndrome','synonyme','syntaxe','synthèse','synthétique','synthétiser','syphilis','syrien','systématique','système','tabac','tabagisme','tabernacle','table','tableau','tablette','tablier','tabou','tabouret','tache','tâche','tâcher','tacheter','tacite','tacitement','taciturne','tact','tactile','tacticien','tactique','taffetas','taie','taillage','taille','tailler','tailleur','taille-crayon','tain','taire','talc','talent','talentueux','talisman','tallage','talon','talonner','talus','tambour','tambourin','tamis','tamiser','tampon','tamponner','tan','tangage','tangente','tangible','tango','tanière','tanin','tanneur','tannerie','tant','tante','tantôt','tapage','tapageur','tape','taper','tapir','tapis','tapisser','tapisserie','tapissier','taquin','taquiner','tarabiscoter','tarage','tarare','tard','tarder','tardif','tare','taré','tarer','tarif','tarification','tarifer','tarin','tarir','tarissement','tarmac','tarot','tartare','tarte','tartelette','tartine','tartiner','tas','tasse','tasser','tâter','tâtonnement','tâtonner','tatou','tatouage','tatouer','taupe','taupinière','taureau','taux','taverne','taxation','taxe','taxer','taxi','taxidermie','technique','technologie','technologique','teck','tectonique','teigne','teindre','teint','teinte','teinture','tel','télé','télécharger','télécommande','télécommunications','télégramme','téléguidé','télékinésie','télématique','télémètre','télépathe','télépathie','téléphone','téléphoner','téléphonie','téléphoto','téléprompteur','télescope','téléscripteur','télésiège','téléspectateur','télévision','tellurique','téméraire','témérité','témoignage','témoigner','témoin','tempe','tempérament','tempérance','température','tempéré','tempête','tempêter','tempétueux','temple','tempo','temporaire','temporalité','temporel','temporisation','temporiser','temps','tenace','ténacité','tenaille','tenant','tendre','tendresse','tendon','tendu','ténèbres','teneur','tenir','tennis','tenor','tenseur','tension','tentacule','tentation','tentative','tente','tenter','tenture','tenue','tenu','tépidité','terme','terminal','terminaison','terminale','terminer','terminologie','terminus','termite','terne','ternir','terrain','terrasse','terre','terreau','terrestre','terreur','terrible','terriblement','terrier','terrifiant','terrifier','terrine','territoire','territorial','terroir','terroriser','terrorisme','terroriste','tertre','test','testament','testateur','tester','testicule','témoin','tête','têter','têtard','têtu','texte','textile','textualité','texture','thé','théâtral','théâtre','thème','théocratie','théologien','théologie','théorème','théoricien','théorie','théorique','thérapeute','thérapeutique','thérapie','thermal','therme','thermique','thermomètre','thermostat','thèse','thon','thorax','thriller','thym','thyroïde','tibia','tic','ticket','tiède','tiédeur','tien','tierce','tiers','tige','tigre','tigresse','tilleul','timbre','timbré','timide','timidement','timidité','timon','timonerie','timoré','tins','tintamarre','tinter','tintement','tique','tir','tirade','tirage','tiraillement','tirailler','tirailleur','tirant','tire','tire-bouchon','tire-fesses','tirelire','tirer','tireur','tiroir','tisane','tison','tissage','tisser','tisserand','tissu','titan','titanesque','titre','titulaire','tituber','toast','toaster','toc','tocsin','toi','toile','toilette','toison','toit','toiture','tokamak','tôle','tolérable','tolérance','tolérant','tolérer','tomate','tombe','tombeau','tomber','tombée','tome','ton','tonalité','tondeuse','tondre','tonalité','tonique','tonneau','tonner','tonnerre','tonus','top','topaze','topo','topographie','topologie','toque','torche','tordre','tordu','tore','torpeur','torpille','torréfier','torrent','torride','tors','torsade','torse','torsion','tort','tortiller','tortue','tortueux','torture','torturer','tôt','total','totalement','totalitaire','totalitarisme','totalité','touchant','touche','toucher','touffe','touffu','toujours','toupie','tour','tourbe','tourbière','tourbillon','tourbillonner','tourelle','tourisme','touriste','touristique','tourment','tourmenter','tourna','tournage','tourne','tournée','tourner','tournevis','tournoi','tourniquet','tourte','tourtereau','tous','tousser','tout','toutefois','toux','toxine','toxique','trace','tracé','tracer','trachée','tract','tractation','tracteur','traction','tradition','traditionnel','traducteur','traduction','traduire','trafic','trafiquant','trafiquer','tragédie','tragique','trahi','trahir','trahison','train','traînard','traînée','traîner','trait','traitable','traité','traitement','traiter','traiteur','traître','traîtresse','trajectoire','tram','trame','tramway','tranchant','tranche','tranchée','trancher','tranquille','tranquillement','tranquillisant','tranquillité','transaction','transatlantique','transcendance','transcendant','transcription','transcrire','transfert','transférer','transformation','transformer','transfuge','transfusion','transgression','transgresser','transhumance','transient','transition','transitoire','translation','translucide','transmission','transmettre','transmutation','transparence','transparent','transpercer','transpiration','transpirer','transplantation','transplanter','transport','transportable','transporteur','transporter','transposition','transversal','trappe','traque','traquer','traumatique','traumatisme','travail','travailler','travailleur','travaux','travée','travelling','travers','traversée','traverser','traversin','travesti','travestir','rayer','rayure','réaction','réagir','réalité','rébellion','rebond','rebondir','rebord','rebrousser','rebus','rebut','rebuter','recadrer','récalcitrant','récapitulatif','récapituler','recaser','recensement','recenser','récent','récemment','réceptacle','récepteur','réception','réceptionniste','réceptivité','recette','recevable','receveur','recevoir','rechange','recharger','réchauffement','réchauffer','recherche','rechercher','rechute','récidive','récidiver','récif','récipient','réciprocité','réciproque','récit','récital','récitant','réciter','réclamation','réclamer','reclus','reclusion','récolement','récolte','récolter','recommandable','recommandation','recommander','recommencement','recommencer','récompense','récompenser','réconcilier','réconciliation','reconduire','réconfort','réconfortant','réconforter','reconnaissance','reconnaissant','reconnaître','reconnu','reconquête','reconquérir','reconstruction','reconstruire','recopier','record','recours','recouvrement','recouvrer','recouvrir','récréatif','récréation','récrier','récrire','récupération','récupérer','récurrence','récurrent','récusation','récuser','rédacteur','rédaction','reddition','redemander','rédempteur','rédemption','redescendre','redevenir','rédiger','redingote','redistribution','redonner','redorer','redoutable','redouter','redressement','redresser','réducteur','réduction','réduire','réduit','réédification','réélection','réélire','réel','réellement','réemploi','réemployer','réenchantement','réenchanter','réengager','réentendre','rééquilibrage','rééquilibrer','réécriture','réexamen','réexpédier','réfaction','réfectoire','référendum','référer','réfléchi','réfléchir','réflecteur','réflexe','réflexion','réforme','réformer','réfractaire','réfraction','refrain','réfrigérateur','réfrigération','refuge','réfugié','refus','refuser','réfutation','réfuter','regagner','régal','régaler','regard','regarder','régénération','régénérer','régent','régie','régime','régiment','région','régional','régir','régisseur','registre','réglage','règle','règlement','réglementaire','réglementation','réglementer','régler','réglisse','régnant','régner','régression','regret','regrettable','regretter','régularisation','régulariser','régularité','régulier','régulièrement','régulation','régulateur','réhabilitation','réhabiliter','réhabituer','rehausser','réimportation','réimposer','réimpression','réimprimer','rein','reine','réinsertion','réinstaller','réintégration','réintégrer','réintroduire','réinvestissement','réinvestir','réitération','réitérer','rejet','rejeter','rejeton','rejoindre','relâche','relâchement','relâcher','relais','relance','relancer','relaps','relation','relationnel','relatif','relation','relaxation','relaxer','relayer','relégation','reléguer','relent','relève','relever','relief','reliure','relier','religieux','religion','relique','relire','reliure','relocation','relouer','reluire','reluisant','remaniement','remanier','remariage','remarier','remarquable','remarque','remarquer','remblai','remblayer','rembourrage','rembourrer','remboursement','rembourser','remède','remédier','remémorer','remerciement','remercier','remettre','remise','remorquage','remorque','remorquer','remous','rempart','remplaçant','remplacement','remplacer','rempli','remplir','remplissage','remport','remporter','remuant','remue-ménage','remuer','rémunération','rémunérer','renard','renaissance','renaître','renaud','renchérir','renchérissement','rencontre','rencontrer','rendement','rendez-vous','rendre','rendu','renégat','renégocier','renfermer','renflouer','renforcement','renforcer','renfort','renfrogné','rengaine','renier','renifler','renne','renom','renommé','renommée','renoncement','renoncer','renonciation','rénovation','rénover','renseignement','renseigner','rentabilité','rentable','rente','rentier','rentrée','rentrer','renverse','renversement','renverser','renvoi','renvoyer','réorganisation','réorganiser','réouverture','repaire','réparation','réparer','répartir','répartition','repas','repassage','repasser','repêcher','repentir','repérage','repère','repérer','répertoire','répertorier','répétition','répéter','repeupler','répit','replacer','replanter','repli','replier','réplique','répliquer','replonger','répondant','réponse','report','reportage','reporter','repos','reposant','reposer','repoussant','repousser','reprendre','représailles','représentant','représentation','représenter','répression','réprimer','reprise','réprobation','reproche','reprocher','reproduction','reproduire','reproduit','réprouver','reptile','républicain','république','répudiation','répudier','répugnance','répugnant','répugner','réputation','requête','requiem','requin','requis','réquisition','réquisitionner','rescapé','rescousse','rescrit','réseau','réservation','réserver','réservoir','résidence','résident','résider','résidu','résiduel','résignation','résigné','résigner','résiliation','résilier','résine','résineux','résistance','résistant','résister','résolu','résolution','résolvant','résoudre','résonance','résonner','résorption','résoudre','respect','respectable','respecter','respectif','respectueux','respirable','respiration','respiratoire','respirer','resplendir','resplendissant','responsabilité','responsable','ressac','ressaisir','ressasser','ressaut','ressayer','ressemblance','ressembler','ressenti','ressentiment','ressentir','resserrer','ressort','ressortir','ressource','ressources','ressusciter','ressuscitation','restant','restauration','restaurer','reste','rester','restituer','restitution','restreint','restreindre','restrictif','restriction','résultat','résultante','résulter','résumé','résumer','résurgence','résurrection','rétablir','rétablissement','retaille','retailler','retape','retard','retardataire','retarder','rétention','retenir','retenue','réticence','réticent','rétif','rétine','retiré','retirement','retirer','retombée','retomber','retordre','retorquer','retors','retouche','retoucher','retour','retourner','retracer','rétractation','rétracter','rétraction','retrait','retraite','retraité','retrancher','rétrécir','rétrécissement','rétribuer','rétribution','rétro','rétroactif','rétroaction','rétrograde','rétropédaler','rétrospective','retrouvailles','retrouver','rets','réuni','réunification','réunifier','réunion','réunir','réussir','réussite','revanche','rêve','réveil','réveiller','réveillon','révélation','révéler','revenant','revendication','revendiquer','revendre','revenir','revenu','rêver','réverbération','réverbère','révérer','révérence','révérend','réversibilité','réversible','réversion','révêtement','revêtir','rêveur','révision','révisionnisme','réviser','revivre','révocable','révocation','revoir','révolte','révolté','révolter','révolution','révolutionnaire','révolutionner','révoquer','revue','rez-de-chaussée','rhinocéros','rhombe','rhubarbe','rhume','rythme','rythmer','riant','ribambelle','riche','richesse','ricocher','ricochet','ride','ridé','rideau','ridicule','ridiculiser','rien','rieur','rigide','rigidité','rigolade','rigoler','rigole','rigolo','rigoureux','rigueur','rime','rimer','rincer','rinçage','ripaille','riposte','riposter','rire','risée','risible','risque','risquer','risqué','rit','rite','rituel','rivage','rival','rivaliser','rivalité','rive','riverain','rivière','rixe','riz','robe','robinet','robot','robotique','robuste','robustesse','roc','rocaille','rocailleux','roche','rocher','rococo','rôder','rôdeur','rodéo','rogne','rogner','rogue','roi','roitelet','rôle','romain','roman','romantique','romantisme','rompre','rompu','ronce','rond','ronde','rondeur','rondin','ronflement','ronfler','ronger','ronronnement','ronronner','roque','rosace','rose','rosé','roseau','rosée','roseraie','rosette','rosier','rossignol','rot','rotation','rotatif','rotatoire','rote','rôti','rôtir','rôtisserie','rotule','roue','rouage','roucouler','roue-libre','rouge','rougeâtre','rougeole','rougir','rouille','rouiller','rouleau','rouler','roulette','roulis','roulotte','roumain','roupillon','rousseur','roustons','route','routier','routine','rouvrir','royal','royalisme','royauté','ruban','rubis','rubrique','ruche','rude','rudesse','rudimentaire','rue','ruée','ruelle','rugby','rugir','rugissement','rugosité','rugueux','ruine','ruiner','ruineux','ruisseau','ruisseler','rumeur','rune','rupture','rural','ruse','ruser','russe','rustique','rustre','rut','rutabaga','rythmé','rythmique','sabbat','sable','sabler','sablier','sablonneux','sabord','sabot','sabotage','saboter','saboteur','sabre','sac','saccade','saccager','saccharine','sacoche','sacré','sacrément','sacrifice','sacrifier','sacrilège','sacristain','sacristie','sage','sagement','sagesse','saignant','saignement','saigner','saillie','saillant','saillir','sain','saint','sainteté','saisie','saisir','saisissant','saison','saisonnier','salade','salage','salaire','salaison','salamandre','salarié','sale','salé','saler','saleté','saligaud','salin','saline','salir','salive','saliver','salle','salon','salope','salopette','saluer','salut','salutation','salve','samedi','sanatorium','sanctuaire','sandale','sang','sanglant','sangle','sanglier','sanglot','sangloter','sanguinaire','sanguin','sanitaire','sans','santé','sapin','saphir','sarbacane','sarcasme','sarcastique','sarcler','sardine','sardonique','satiété','satire','satirique','satisfaction','satisfaire','satisfait','saturer','saturation','samedi','sauces','saucisse','saucisson','sauf','sauge','saule','saumon','saumure','sauna','saut','sauter','sauterelle','sauteur','sauvage','sauvagement','sauvegarde','sauvegarder','sauver','sauvetage','sauveteur','sauveur','savane','savant','savate','saveur','savoir','savon','savonner','savonnerie','savonnette','savoureux','savourer','scabreux','scalpel','scandale','scandaleux','scander','scanner','scaphandre','scarabée','scarlatine','scène','scénario','scénariste','scepticisme','sceptique','schéma','schisme','schiste','schizophrénie','sciage','scie','sciemment','scier','scierie','scintillant','scintiller','scission','sciatique','scolaire','scolarité','scolopendre','scooter','scorbut','scorie','scorpion','scout','scouts','scribe','script','scriptorium','scrupule','scrupuleux','scrutin','sculpter','sculpteur','sculpture','se','séance','séant','seau','sébile','sec','sèche','sécher','sécheresse','séchoir','second','secondaire','seconde','seconder','secouer','secousse','secourir','secours','secret','secrétaire','secrétariat','sécréter','sécrétion','sectaire','secte','secteur','section','séculaire','sécurité','sédatif','sédentaire','sédiment','sédimentaire','séduction','séduire','séduisant','segment','ségrégation','seigle','seigneur','seigneurial','sein','seize','séjour','séjourner','sel','sélection','sélectionner','selle','sellerie','sellette','selon','semaine','semaille','semaine','semence','semer','semestre','semi','semis','semoir','semoule','sénat','sénateur','séné','sénile','sens','sensass','sensations','sensé','sensibilité','sensible','sensiblement','sensitif','sensitive','sensoriel','sensualité','sensuel','sentence','sentier','sentiment','sentimental','sentir','séparation','séparé','séparément','séparer','sept','septembre','septentrional','septième','sépulcre','sépulture','séquelle','séquence','séquestration','séquestrer','séquoia','sérénade','sérénité','serein','série','sérieux','seringue','serment','sermon','serpe','serpent','serpenter','serpentine','serre','serrer','serrure','serrurerie','serrurier','sertir','sertissage','servante','serveur','serviable','service','serviette','servile','servir','serviteur','servitude','session','seuil','seul','seulement','sève','sévère','sévérité','sévices','sexe','sexisme','sexiste','sexualité','sexuel','shampooing','short','show','sibérie','sicile','sidéral','sidération','siècle','siège','sieste','siffler','sifflet','siffleur','signal','signalement','signaler','signalétique','signalisation','signature','signe','signer','signifiant','signification','signifier','silence','silencieux','silex','silhouette','sillon','sillonner','silo','simagrée','similaire','similarité','simili','simple','simplement','simplicité','simplification','simplifier','simulation','simuler','simultané','simultanément','sinapisme','sincère','sincèrement','sincérité','singe','singerie','singularité','singulier','sinistre','sinon','sinueux','sinus','sinusite','siphon','sirène','sirop','sis','site','situation','situer','six','sixième','ski','skier','skieur','slalom','slave','slip','slogan','smoking','snack','snob','snobisme','sobre','sobriété','soc','sociable','social','socialisme','socialiste','société','sociologie','sociologue','socle','sodium','sœur','sofa','soi','soie','soif','soigné','soigner','soigneur','soin','soir','soirée','soit','soixante','sol','solaire','soldat','solde','solder','sole','soleil','solennel','solennité','solfège','solidaire','solidarité','solide','solidifier','solidité','solitaire','solitude','solive','sollicitation','solliciter','solo','soluble','solution','solvable','solvant','sombre','sombrer','sommaire','sommation','somme','sommeil','sommeler','sommelier','sommet','sommité','somnifère','somnolence','somnoler','somptueux','son','sonate','sondage','sonde','sonder','songe','songer','sonner','sonnerie','sonnette','sonore','sonorité','sophisme','sophistiqué','sophrone','sorbet','sorcellerie','sorcier','sorcière','sordide','sorgho','sort','sorte','sortie','sortilège','sortir','sot','sottise','sou','soubresaut','souche','souci','soucier','soucieux','soucoupe','soudain','soudainement','soudage','soude','souder','soudeur','soudure','souffle','souffler','soufflet','souffleur','souffrance','souffrant','souffre','souffrir','souhait','souhaitable','souhaiter','souiller','souillure','soûl','soulagement','soulager','soûlant','soûler','soulèvement','soulever','soulier','souligner','soumettre','soumis','soumission','soupape','soupçon','soupçonner','soupçonneux','soupe','soupir','soupirail','soupirant','soupirer','souple','souplesse','source','sourcil','sourd','sourdine','souriant','sourire','souris','sournois','sous','sous-bois','sous-chef','sous-comité','sous-cutané','sous-directeur','sous-entendre','sous-entendu','sous-estimé','sous-estimer','sous-marin','sous-officier','sous-préfet','sous-produit','sous-sol','sous-titre','soustraction','soustraire','sous-traitant','sous-traiter','sous-vêtement','soutane','soutenir','soutenu','souterrain','soutien','soutirer','souvenir','souvent','souverain','souveraineté','soya','spaghetti','spatial','spécial','spécialiste','spécialité','spécialisation','spécialiser','spécification','spécifier','spécimen','spécifique','spectacle','spectaculaire','spectateur','spectre','spéléologie','sphère','sphérique','sphinx','spécial','spinal','spirale','spiritualité','spirituel','spiritueux','splendeur','splendide','spongieux','spontané','spontanéité','spontanément','sport','sportif','sportive','spot','sprint','sprinter','square','squelette','squale','squatter','stabilité','stabilisateur','stabiliser','stable','stade','stage','stagiaire','stagnation','stagner','stalle','stance','stand','standard','stase','station','stationnaire','stationnement','stationner','statique','statistique','statuaire','statue','statuette','statut','stèle','sténographie','stérile','stérilisation','stériliser','sternum','stéthoscope','stigmate','stimulant','stimulation','stimuler','stipuler','stock','stockage','stocker','stoïque','stoïcisme','stop','stopper','store','strapontin','stratège','stratégie','stratégique','stratosphère','strict','strictement','strident','structure','structurer','studieux','studio','stupéfaction','stupéfait','stupéfiant','stupéfier','stupeur','stupide','stupidité','style','stylo','suaire','suave','subalterne','subconscient','subdivision','subir','subit','subitement','subjectif','subjectivité','subjonctif','subjuguer','sublimation','sublime','submerger','submersible','submersion','subordonné','subordonner','suborner','sub rosa','subsidence','subsidiaire','subsistance','subsister','substance','substantiel','substantif','substituer','substitution','subtil','subtilité','subvention','subventionner','subversif','subversion','subvertir','suc','succéder','succès','successeur','successif','succession','successivement','succinct','succomber','succube','succulent','sucer','sucre','sucré','sucrer','sucrerie','sud','sudiste','suède','suédois','suer','sueur','suffire','suffisamment','suffisance','suffisant','suffixe','suffocation','suffoquer','suffrage','suggérer','suggestion','suicide','suicider','suie','suif','suintement','suinter','suisse','suite','suivant','suivante','suivi','suivre','sujet','sulfate','sulfure','sultan','super','superbe','superficie','superficiel','superflu','supérieur','supérieurement','supériorité','superlatif','supermarché','superposer','superposition','superpuissance','superstition','superstitieux','superviser','supervision','suppléant','supplément','supplémentaire','suppléer','suppliant','supplication','supplier','support','supportable','supporter','supposé','supposer','supposition','suppression','supprimer','suppurations','suppurer','suprématie','suprême','sur','sûr','surabondance','surabondant','surajouter','suranné','suraigu','surarmement','surarmer','surbaissé','surbooking','surchargé','surcharge','surcharger','surconscient','surconsommation','surcoût','surdité','sureau','surélever','surélévation','surendettement','surendetter','surenchère','surenchérir','surestimation','surestimer','sûrement','sûreté','surface','surfaire','surfaix','surfeur','surfiler','surgir','surgis','surhomme','surhumain','surimposer','surinfection','surinformer','surintendant','surinvestissement','surinvestir','surjaillir','surlendemain','surligner','surmenage','surmené','surmener','surmonter','surmoulage','surnager','surnaturel','surnom','surnommer','surnombre','surnuméraire','suroît','surpayer','surpeuplé','surpeuplement','surpeupler','surpoids','surprenant','surprendre','surpris','surprise','surproduction','surprotéger','surréalisme','surréaliste','surréel','surrégime','surréservation','surréserver','sursis','sursaut','sursauter','surtaxer','surteint','surterre','surtout','surveillance','surveillant','surveiller','survenance','survenir','survie','survivant','survivre','survol','survoler','sus','susceptibilité','susceptible','susciter','susdit','suspect','suspecter','suspendre','suspendu','suspens','suspense','suspension','suspicion','sustenter','suture','svelte','sybarite','sycomore','syllabe','syllabus','sylvestre','symbole','symbolique','symboliser','symétrie','symétrique','sympathie','sympathique','sympathiser','symphonie','symptôme','synagogue','synapse','synchronisation','synchroniser','synchrone','syndicat','syndical','syndic','syndrome','synonyme','syntaxe','synthèse','synthétique','synthétiser','syphilis','syrien','systématique','système','tabac','tabagisme','tabernacle','table','tableau','tablette','tablier','tabou','tabouret','tache','tâche','tâcher','tacheter','tacite','tacitement','taciturne','tact','tactile','tacticien','tactique','taffetas','taie','taillage','taille','tailler','tailleur','taille-crayon','tain','taire','talc','talent','talentueux','talisman','tallage','talon','talonner','talus','tambour','tambourin','tamis','tamiser','tampon','tamponner','tan','tangage','tangente','tangible','tango','tanière','tanin','tanneur','tannerie','tant','tante','tantôt','tapage','tapageur','tape','taper','tapir','tapis','tapisser','tapisserie','tapissier','taquin','taquiner','tarabiscoter','tarage','tarare','tard','tarder','tardif','tare','taré','tarer','tarif','tarification','tarifer','tarin','tarir','tarissement','tarmac','tarot','tartare','tarte','tartelette','tartine','tartiner','tas','tasse','tasser','tâter','tâtonnement','tâtonner','tatou','tatouage','tatouer','taupe','taupinière','taureau','taux','taverne','taxation','taxe','taxer','taxi','taxidermie','technique','technologie','technologique','teck','tectonique','teigne','teindre','teint','teinte','teinture','tel','télé','télécharger','télécommande','télécommunications','télégramme','téléguidé','télékinésie','télématique','télémètre','télépathe','télépathie','téléphone','téléphoner','téléphonie','téléphoto','téléprompteur','télescope','téléscripteur','télésiège','téléspectateur','télévision','tellurique','téméraire','témérité','témoignage','témoigner','témoin','tempe','tempérament','tempérance','température','tempéré','tempête','tempêter','tempétueux','temple','tempo','temporaire','temporalité','temporel','temporisation','temporiser','temps','tenace','ténacité','tenaille','tenant','tendre','tendresse','tendon','tendu','ténèbres','teneur','tenir','tennis','tenor','tenseur','tension','tentacule','tentation','tentative','tente','tenter','tenture','tenue','tenu','tépidité','terme','terminal','terminaison','terminale','terminer','terminologie','terminus','termite','terne','ternir','terrain','terrasse','terre','terreau','terrestre','terreur','terrible','terriblement','terrier','terrifiant','terrifier','terrine','territoire','territorial','terroir','terroriser','terrorisme','terroriste','tertre','test','testament','testateur','tester','testicule','témoin','tête','têter','têtard','têtu','texte','textile','textualité','texture','thé','théâtral','théâtre','thème','théocratie','théologien','théologie','théorème','théoricien','théorie','théorique','thérapeute','thérapeutique','thérapie','thermal','therme','thermique','thermomètre','thermostat','thèse','thon','thorax','thriller','thym','thyroïde','tibia','tic','ticket','tiède','tiédeur','tien','tierce','tiers','tige','tigre','tigresse','tilleul','timbre','timbré','timide','timidement','timidité','timon','timonerie','timoré','tins','tintamarre','tinter','tintement','tique','tir','tirade','tirage','tiraillement','tirailler','tirailleur','tirant','tire','tire-bouchon','tire-fesses','tirelire','tirer','tireur','tiroir','tisane','tison','tissage','tisser','tisserand','tissu','titan','titanesque','titre','titulaire','tituber','toast','toaster','toc','tocsin','toi','toile','toilette','toison','toit','toiture','tokamak','tôle','tolérable','tolérance','tolérant','tolérer','tomate','tombe','tombeau','tomber','tombée','tome','ton','tonalité','tondeuse','tondre','tonalité','tonique','tonneau','tonner','tonnerre','tonus','top','topaze','topo','topographie','topologie','toque','torche','tordre','tordu','tore','torpeur','torpille','torréfier','torrent','torride','tors','torsade','torse','torsion','tort','tortiller','tortue','tortueux','torture','torturer','tôt','total','totalement','totalitaire','totalitarisme','totalité','touchant','touche','toucher','touffe','touffu','toujours','toupie','tour','tourbe','tourbière','tourbillon','tourbillonner','tourelle','tourisme','touriste','touristique','tourment','tourmenter','tourna','tournage','tourne','tournée','tourner','tournevis','tournoi','tourniquet','tourte','tourtereau','tous','tousser','tout','toutefois','toux','toxine','toxique','trace','tracé','tracer','trachée','tract','tractation','tracteur','traction','tradition','traditionnel','traducteur','traduction','traduire','trafic','trafiquant','trafiquer','tragédie','tragique','trahi','trahir','trahison','train','traînard','traînée','traîner','trait','traitable','traité','traitement','traiter','traiteur','traître','traîtresse','trajectoire','tram','trame','tramway','tranchant','tranche','tranchée','trancher','tranquille','tranquillement','tranquillisant','tranquillité','transaction','transatlantique','transcendance','transcendant','transcription','transcrire','transfert','transférer','transformation','transformer','transfuge','transfusion','transgression','transgresser','transhumance','transient','transition','transitoire','translation','translucide','transmission','transmettre','transmutation','transparence','transparent','transpercer','transpiration','transpirer','transplantation','transplanter','transport','transportable','transporteur','transporter','transposition','transversal','trappe','traque','traquer','traumatique','traumatisme','travail','travailler','travailleur','travaux','travée','travelling','travers','traversée','traverser','traversin','travesti','travestir']
   },
-  objects:{
-    label:'Everyday Objects (Fallback)',
-    words:[
-      'alarm clock','anchor','armchair','backpack','ball','balloon','bandage','barrel','basket','battery',
-      'bed','bell','belt','bench','bicycle','binoculars','blanket','blender','book','bookmark','boot',
-      'bottle','bowl','bracelet','brick','briefcase','broom','brush','bucket','buckle','bulb','button',
-      'cabinet','calculator','calendar','camera','candle','canister','canvas','cap','card','carpet','cart',
-      'chain','chair','chalk','charger','clock','coat','coin','comb','compass','computer','container','couch',
-      'cradle','crate','crayon','cup','curtain','cushion','dagger','desk','dice','dish','doorknob','drawer',
-      'drill','drum','envelope','eraser','fan','faucet','feather','fence','file','filter','flag','flashlight',
-      'flask','flute','folder','fork','frame','funnel','furniture','gavel','glasses','globe','glove','glue',
-      'goggles','guitar','hammer','hammock','hanger','harp','hat','headphones','helmet','hook','hose','hourglass',
-      'iron','jacket','jar','jersey','jewelry','jug','jigsaw','kettle','key','keyboard','kite','knife','knob',
-      'ladder','ladle','lamp','lantern','laptop','latch','leash','lens','lever','lighter','lock','locket',
-      'luggage','magnet','magnifying glass','map','marker','mat','match','mattress','medal','megaphone','mirror',
-      'mitten','mop','mouse','mug','nail','napkin','necklace','needle','net','notebook','oar','padlock','pail',
-      'paintbrush','pajamas','pan','paperclip','parachute','parasol','passport','pen','pencil','pendulum',
-      'perfume','phone','photograph','piano','picture','pillow','pin','pipe','pitcher','plaque','plate','pliers',
-      'plug','plunger','pocket','pot','pouch','projector','pulley','purse','puzzle','quilt','racket','radio',
-      'raft','razor','remote','ribbon','ring','robe','rocket','rope','ruler','saddle','safe','sail','sandal',
-      'saw','scale','scarf','scissors','screen','screw','screwdriver','scythe','seal','seat','shampoo','shelf',
-      'shield','shirt','shoe','shovel','shower','sign','sink','skate','skillet','skirt','sled','slipper',
-      'soap','sock','sofa','solar panel','spanner','spatula','speaker','sponge','spoon','spring','stamp',
-      'stapler','statue','stethoscope','sticker','stool','stopwatch','stove','strap','straw','string','suitcase',
-      'sunglasses','sweater','sword','syringe','table','tablet','tag','tape','teapot','telescope','tent',
-      'thermostat','thimble','thread','ticket','tie','tile','timer','tissue','toaster','tongs','toothbrush',
-      'toothpaste','torch','towel','toy','tractor','tray','trolley','trophy','trumpet','trunk','tub','tube',
-      'tuba','umbrella','urn','vacuum','vase','vest','violin','visor','wallet','wand','wardrobe','watch',
-      'watering can','wheel','wheelbarrow','whistle','wig','window','windshield','wineglass','wire','wrench',
-      'xylophone','yarn','yo yo','zipper'
-    ]
+  de:{
+    mixed:['apfel','anker','astronaut','avocado','rucksack','ballon','banane','leuchtturm','fahrrad','decke','bumerang','brokkoli','schmetterling','kaktus','kamera','lagerfeuer','kerze','schlucht','karussell','schloss','gepard','schokolade','kompass','keks','krokodil','krone','diamant','dinosaurier','delfin','libelle','finsternis','elefant','aufzug','feder','feuerwerk','flamingo','taschenlampe','brunnen','giraffe','gletscher','gitarre','hängematte','igel','hubschrauber','eisberg','leguan','insel','qualle','känguru','tastatur','drachen','koala','labyrinth','laterne','lavendel','limonade','leopard','bibliothek','blitz','hummer','magnet','mango','marshmallows','wiese','mikroskop','milchshake','berg','pilz','halskette','oktopus','origami','strauß','pinsel','pfannkuchen','fallschirm','pinguin','ananas','pirat','popcorn','stachelschwein','pyramide','waschbär','regenbogen','nashorn','segelboot','satellit','vogelscheuche','skorpion','seepferdchen','schatten','skelett','wolkenkratzer','schneeflocke','raumschiff','spaghetti','eichhörnchen','seestern','erdbeere','u-boot','sonnenblume','teleskop','gewitter','tornado','schatz','posaune','tulpe','regenschirm','einhorn','vulkan','waffel','wasserfall','wassermelone','windmühle','zauberer','xylophon','zebra'],
+    animals:['adler','affe','albatros','alligator','alpaka','ameise','antilope','bär','biber','biene','büffel','dachs','delfin','eichhörnchen','elefant','elch','ente','esel','eule','falke','fisch','flamingo','fledermaus','floh','fuchs','gans','gecko','gepard','giraffe','gorilla','hase','hai','hamster','huhn','hyäne','igel','jaguar','kamel','känguru','katze','koala','krabbe','krokodil','kuh','lachs','lama','leopard','löwe','luchs','maulwurf','maus','möwe','nashorn','oktopus','otter','panda','panther','papagei','pferd','pinguin','qualle','rabe','ratte','reh','rentier','robbe','schaf','schildkröte','schlange','schwan','schwein','skorpion','spinne','storch','strauß','taube','tiger','truthahn','uhu','wal','wolf','zebra'],
+    food:['apfel','ananas','avocado','banane','birne','brot','brokkoli','butter','chili','erdbeere','erbsen','essig','feige','fleisch','forelle','gurke','hafer','honig','käse','kartoffel','kirsche','knoblauch','kohl','kokosnuss','kuchen','lachs','limette','mais','mandel','mango','melone','milch','möhre','nudel','nuss','olive','orange','papaya','pasta','pfeffer','pflaume','pilz','pizza','reis','salat','salz','sahne','schinken','schokolade','senf','suppe','tee','tomate','traube','vanille','wasser','wassermelone','wurst','zitrone','zucker','zwiebel'],
+    objects:['anker','armband','axt','ball','bank','batterie','becher','bett','besen','bild','blatt','bleistift','blume','boot','brief','brille','buch','bürste','decke','dose','draht','eimer','eisen','fass','feder','fenster','flasche','flöte','gabel','garten','geld','glas','glocke','gürtel','haken','hammer','handtuch','hut','kamm','kamera','kanne','karte','kerze','kette','kissen','kiste','klammer','kleid','knopf','korb','koffer','kreide','krug','lampe','leiter','löffel','messer','münze','nadel','netz','ofen','papier','pinsel','pumpe','rad','rahmen','ring','rohr','sack','säge','sattel','schale','schere','schild','schlüssel','schloss','schraube','schuh','seife','seil','sieb','socke','spiegel','spule','stab','stein','stift','stock','stuhl','tasche','tasse','teller','teppich','tisch','topf','tuch','tür','uhr','vase','waage','wagen','wand','weste','wolke','zange','zelt'],
+    nature:['bach','berg','blatt','blume','blitz','boden','busch','donner','dune','ebene','erde','feld','fels','fluss','frost','gipfel','gletscher','gras','höhle','hügel','insel','klima','küste','land','luft','meer','moor','mond','nebel','ozean','quelle','regen','riff','sand','schnee','see','sonne','stern','strand','sturm','tal','teich','ufer','vulkan','wald','wasser','welle','wiese','wind','wolke','wüste'],
+    pop:['abenteuer','agent','alien','amulett','arena','armor','asteroid','atlantis','avatar','band','burg','detektiv','drache','duell','elf','film','geist','gigant','goblin','held','hexe','höhle','insel','könig','kristall','laser','legende','magie','magier','maske','monster','musik','ninja','pirat','portal','prinzessin','rätsel','ritter','roboter','samurai','schatz','schatten','schiff','schwert','spion','stage','stern','troll','turm','unicorn','vampir','weltall','zauber','zombie']
   },
-  nature:{
-    label:'Nature & Places (Fallback)',
-    words:[
-      'archipelago','atoll','avalanche','bay','beach','blizzard','boulder','brook','butte','canal','canyon',
-      'cape','cave','cavern','cliff','cloud','coast','comet','constellation','coral reef','crater','creek',
-      'current','dawn','delta','desert','dew','dune','dusk','earthquake','eclipse','estuary','fjord','flood',
-      'fog','forest','frost','geyser','glacier','gorge','grassland','gulf','harbor','hill','horizon','iceberg',
-      'island','isthmus','jungle','lagoon','lake','landslide','lava','lightning','marsh','meadow','mesa',
-      'meteor','mist','monsoon','moon','moor','mountain','mudflat','nebula','oasis','ocean','peninsula','plain',
-      'plateau','pond','prairie','precipice','rain','rainbow','rainforest','rapids','reef','ridge','river',
-      'sandbar','savanna','sea','seashore','shoal','shore','sinkhole','sky','snow','snowstorm','sound',
-      'spring','star','steppe','storm','strait','stream','sun','sunrise','sunset','swamp','swell','tide',
-      'tundra','twilight','typhoon','valley','volcano','waterfall','watershed','wave','wetland','whirlpool',
-      'wilderness','wind','woods'
-    ]
-  },
-  pop:{
-    label:'Movies & Pop (Fallback)',
-    words:[
-      'alien','amulet','archer','arena','armor','asteroid','atlantis','avatar','wizard','dragon','phoenix',
-      'unicorn','mermaid','vampire','werewolf','zombie','ghost','goblin','ogre','troll','elf','dwarf','knight',
-      'samurai','ninja','pirate','cowboy','detective','spy','villain','hero','sidekick','time travel','portal',
-      'spaceship','lightsaber','wand','broomstick','potion','spell','crown','throne','castle','dungeon',
-      'treasure','map','compass','riddle','prophecy','curse','shield','sword','bow','arrow','cloak','mask',
-      'robot','cyborg','android','clone','hologram','laser','teleporter','dinosaur','kaiju','kraken','gargoyle',
-      'sphinx','minotaur','centaur','griffin','basilisk','hydra','yeti','bigfoot','loch ness','haunted house',
-      'carnival','circus','stage','spotlight','script','director','camera','soundtrack','sequel','plot twist',
-      'arcade','highscore','boss fight','quest','guild','inventory','respawn','cutscene','trophy','podium'
-    ]
+  he:{
+    mixed:['תפוח','עוגן','אסטרונאוט','אבוקדו','תרמיל','בלון','בננה','מגדלור','אופניים','שמיכה','בומרנג','ברוקולי','פרפר','קקטוס','מצלמה','מדורה','נר','קניון','קרוסלה','טירה','ברדלס','שוקולד','מצפן','עוגייה','תנין','כתר','יהלום','דינוזאור','דולפין','שפירית','ליקוי','פיל','מעלית','נוצה','זיקוקים','פלמינגו','פנס','מזרקה','ג׳ירפה','קרחון','גיטרה','ערסל','קיפוד','מסוק','שעון חול','קרחון ימי','איגואנה','אי','מדוזה','קנגורו','מקלדת','עפיפון','קואלה','מבוך','עששית','לבנדר','לימונדה','נמר','ספרייה','ברק','לובסטר','מגנט','מנגו','מרשמלו','אחו','מיקרוסקופ','מילקשייק','הר','פטרייה','שרשרת','תמנון','אוריגמי','יען','מכחול','פנקייק','מצנח','טווס','שקנאי','פינגווין','אננס','פיראט','פופקורן','דורבן','פירמידה','דביבון','קשת בענן','נחש','מקרר','קרנף','רכבת הרים','מפרשית','לוויין','דחליל','עקרב','סוסון ים','צל','שלד','גורד שחקים','פתית שלג','חללית','ספגטי','ספינקס','סנאי','כוכב ים','צוללת','חמנייה','גלשן','טלסקופ','סופה','טורנדו','טרמפולינה','אוצר','טרומבון','צבעוני','מטרייה','חד קרן','שואב אבק','ערפד','הר געש','וופל','מפל','אבטיח','מריצה','טחנת רוח','קוסם','קסילופון','זברה'],
+    animals:['אריה','נמר','פיל','ג׳ירפה','זברה','קוף','כלב','חתול','סוס','פרה','כבשה','עז','דוב','זאב','שועל','ארנבת','עכבר','ינשוף','נשר','עורב','יונה','ברווז','ברבור','תוכי','פינגווין','דולפין','לווייתן','כריש','תמנון','מדוזה','סרטן','צפרדע','צב','נחש','לטאה','תנין','דבורה','פרפר','נמלה','עכביש','עקרב','חילזון','קיפוד','סנאי','גמל','קנגורו','קואלה','פנדה','היפופוטם','קרנף','אייל','ינשוף','עטלף','חולד','סמור','לוטרה','כלב ים','אריה ים','חסידה','שחף'],
+    food:['תפוח','בננה','תפוז','אגס','אפרסק','שזיף','ענבים','אבטיח','מלון','תות','אננס','מנגו','לימון','לימונית','אבוקדו','עגבנייה','מלפפון','גזר','בצל','שום','תפוח אדמה','בטטה','פלפל','חציל','קישוא','כרוב','ברוקולי','כרובית','חסה','תרד','אורז','לחם','פיצה','פסטה','ספגטי','מרק','סלט','ביצה','גבינה','חמאה','חלב','יוגורט','דבש','שוקולד','עוגה','עוגייה','גלידה','קפה','תה','מיץ','יין','שמן','מלח','סוכר','אגוז','שקד','חומוס','טחינה','פלאפל','חומוס','חומוס'],
+    objects:['שולחן','כיסא','מיטה','ארון','דלת','חלון','מראה','מנורה','שעון','טלפון','מחשב','מקלדת','עכבר','מסך','ספר','מחברת','עט','עיפרון','מחק','סרגל','מספריים','תיק','ארנק','מפתח','מנעול','כוס','צלחת','כף','מזלג','סכין','סיר','מחבת','קומקום','בקבוק','קופסה','סל','שמיכה','כרית','מגבת','סבון','מברשת','מסרק','נעליים','גרביים','חולצה','מכנסיים','מעיל','כובע','משקפיים','טבעת','שרשרת','שעון יד','מטרייה','מפתח','פטיש','מברג','מסור','מסמר','חבל','סולם','מגב','מטאטא','גיטרה','פסנתר','תוף','כדור','בובה','מצלמה','פנס','נר'],
+    nature:['הר','גבעה','עמק','מדבר','ים','אוקיינוס','אגם','נהר','נחל','מפל','חוף','אי','חצי אי','יער','יער גשם','אחו','שדה','מערה','צוק','קרחון','הר געש','שמיים','שמש','ירח','כוכב','ענן','גשם','שלג','רוח','ברק','רעם','קשת','אדמה','חול','בוץ','אבן','סלע','עץ','פרח','עלה','דשא','זרע','שורש','אוקיינוס','אופק'],
+    pop:['דרקון','קוסם','מכשפה','אביר','פיראט','חייזר','רובוט','חללית','מפלצת','רוח רפאים','ערפד','זומבי','גיבור','נבל','אוצר','מפה','מצפן','חרב','מגן','קשת','חץ','כתר','טירה','מבוך','פורטל','קרקס','קולנוע','במה','פרס','גביע','חידה','נבואה','שיקוי','שרביט','גלימה','מסכה','הולוגרמה','לייזר','דינוזאור']
   }
 };
 
@@ -417,22 +707,39 @@ const BROKERS=[
 ];
 
 // <logic>
-const ALIASES=["Fox","Owl","Newt","Moth","Lynx","Crow","Hare","Wren","Seal","Toad","Mole","Bat","Deer","Mink","Lark","Crab"];
+function getLangMeta(lang){
+  return LANG_META[lang]||LANG_META.en;
+}
+function getT(lang){
+  return I18N[lang]||I18N.en;
+}
 
-function norm(s){
-  return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+function norm(s,lang='en'){
+  let str=String(s||'').toLowerCase().normalize('NFD');
+  if(lang==='he'){
+    // Strip Hebrew nikud/cantillation marks while preserving Hebrew letters
+    str=str.replace(/[\u0591-\u05C7]/g,'');
+    return str.replace(/[^\u0590-\u05FFa-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+  }
+  return str.replace(/[\u0300-\u036f]/g,'')
     .replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
 }
-function cleanBank(lists){
-  const seen=new Set(),out=[],skip=['of','the','and','for','with','set','pair'];
+function isWordToken(w,lang='en'){
+  if(lang==='he'){
+    return /^[\u0590-\u05FFa-z]+( [\u0590-\u05FFa-z]+)?$/.test(w);
+  }
+  return /^[a-z]+( [a-z]+)?$/.test(w);
+}
+function cleanBank(lists,lang='en'){
+  const seen=new Set(),out=[],skip=['of','the','and','for','with','set','pair','de','la','el','los','las','le','les','un','une','des','der','die','das','und','mit','von','של','את','על','עם'];
   for(const arr of lists){
     if(!Array.isArray(arr))continue;
     for(const raw of arr){
       if(typeof raw!=='string')continue;
-      const w=norm(raw);
-      if(!/^[a-z]+( [a-z]+)?$/.test(w))continue;
+      const w=norm(raw,lang);
+      if(!isWordToken(w,lang))continue;
       const toks=w.split(' ');
-      if(w.replace(/ /g,'').length<3||toks.some(t=>t.length<2||skip.includes(t)))continue;
+      if(w.replace(/ /g,'').length<2||toks.some(t=>t.length<2||skip.includes(t)))continue;
       if(seen.has(w))continue;
       seen.add(w);out.push(w);
     }
@@ -450,41 +757,53 @@ function extractStringsFromJson(val,depth=0){
   }
   return[];
 }
-function violates(text,phrase){
-  const n=norm(text); if(!n)return false;
+function violates(text,phrase,lang='en'){
+  const n=norm(text,lang); if(!n)return false;
   const toks=n.split(' '), compact=toks.join('');
-  const words=norm(phrase).split(' '), joined=words.join('');
-  if(joined.length>=5 && compact.includes(joined))return true;
+  const words=norm(phrase,lang).split(' '), joined=words.join('');
+  if(joined.length>=4 && compact.includes(joined))return true;
   for(const w of words){
     for(const t of toks){
       if(t===w)return true;
-      if(w.length>=4 && t.startsWith(w) && t.length<=w.length+3)return true;
-      if(t.length>=4 && w.length>=5 && w.includes(t))return true;
-      if(t.length>=3 && w.length>=5 && w.startsWith(t))return true;
-      if(w.length>=6 && t.length>=4 && t.startsWith(w.slice(0,w.length-2)))return true;
+      if(lang==='he'){
+        // Common Hebrew prefixes (ה, ו, ב, כ, ל, מ, ש)
+        const stripped=t.replace(/^[הובכלמש]/,'');
+        if(w.length>=2 && (stripped===w || t===w || (w.length>=3 && t.includes(w))))return true;
+      }else{
+        if(w.length>=4 && t.startsWith(w) && t.length<=w.length+3)return true;
+        if(t.length>=4 && w.length>=5 && w.includes(t))return true;
+        if(t.length>=3 && w.length>=5 && w.startsWith(t))return true;
+        if(w.length>=6 && t.length>=4 && t.startsWith(w.slice(0,w.length-2)))return true;
+      }
     }
   }
   return false;
 }
-function violatesAny(text,phrase,extra){
-  return violates(text,phrase)||(extra||[]).some(e=>violates(text,e));
+function violatesAny(text,phrase,extra,lang='en'){
+  return violates(text,phrase,lang)||(extra||[]).some(e=>violates(text,e,lang));
 }
-function pickRelated(cands,phrase,n){
+function pickRelated(cands,phrase,n,lang='en'){
   const out=[];
   for(const c of (cands||[])){
     if(out.length>=n)break;
-    const w=norm(c&&c.word);
-    if(!/^[a-z]{3,}$/.test(w))continue;
-    if(violates(w,phrase)||out.some(o=>violates(w,o)))continue;
+    const w=norm(c&&c.word,lang);
+    if(!isWordToken(w,lang)||w.replace(/ /g,'').length<2)continue;
+    if(violates(w,phrase,lang)||out.some(o=>violates(w,o,lang)))continue;
     out.push(w);
   }
   return out;
 }
-function isGuess(text,phrase){
-  const n=norm(text), p=norm(phrase);
-  if(!n || n.split(' ').length>6)return false;
+function isGuess(text,phrase,lang='en'){
+  const n=norm(text,lang), p=norm(phrase,lang);
+  if(!n || !p || n.split(' ').length>6)return false;
   const pad=' '+n+' ';
-  return pad.includes(' '+p+' ') || pad.includes(' '+p+'s ') || n.replace(/ /g,'')===p.replace(/ /g,'');
+  if(pad.includes(' '+p+' ') || n.replace(/ /g,'')===p.replace(/ /g,''))return true;
+  if(lang!=='he' && pad.includes(' '+p+'s '))return true;
+  if(lang==='he'){
+    const variants=[' '+p+' ',' ה'+p+' ',' ו'+p+' ',' וה'+p+' ',' ב'+p+' ',' ל'+p+' ',' מ'+p+' ',' ש'+p+' '];
+    return variants.some(v=>pad.includes(v));
+  }
+  return false;
 }
 function pickWord(bank,used){
   for(let k=0;k<80;k++){
@@ -508,12 +827,12 @@ function buildOrder(ids,rounds){
 // </logic>
 
 const $=s=>document.querySelector(s);
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&','<':'<','>':'>','"':'"',"'":'"'}[c]));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&','<':'<','>':'>','"':'"',"'":"'"}[c]));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const show=id=>{document.querySelectorAll('.screen').forEach(e=>e.classList.add('hidden'));$('#'+id).classList.remove('hidden');window.scrollTo(0,0);};
 const fmtClock=ms=>{const s=Math.ceil(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
-const defaults=()=>({bank:'mixed',customTopic:'',seconds:90,rounds:3,extra:0,maxSkips:3,limitSkips:true,skipCost:0,max:8,anon:true});
+const defaults=()=>({lang:'en',bank:'mixed',customTopic:'',seconds:90,rounds:3,extra:0,maxSkips:3,limitSkips:true,skipCost:0,max:8,anon:true});
 const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 
 const SANDBOXED=(()=>{try{void window.localStorage;return false;}catch(e){return true;}})();
@@ -524,6 +843,83 @@ const log=(...a)=>console.info('[Ellis]',...a);
 
 const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null,seenMids:new Set(),dynamicFolders:[]};
 let G=null;
+
+function applyLanguageUI(lang){
+  const code=LANG_META[lang]?lang:'en';
+  const meta=getLangMeta(code);
+  const t=getT(code);
+  document.documentElement.lang=code;
+  document.documentElement.dir=meta.dir;
+  document.body.dir=meta.dir;
+
+  $('#tagTxt').textContent=t.tag;
+  $('#nameLbl').firstChild.textContent=t.yourName;
+  $('#nameIn').placeholder=t.namePlaceholder;
+  $('#btnCreate').textContent=t.createRoom;
+  $('#orTxt').textContent=t.orJoin;
+  $('#codeIn').placeholder=t.codePlaceholder;
+  $('#btnJoin').textContent=t.join;
+  $('#localModeTxt').textContent=t.localMode;
+  $('#localModeLbl').dataset.tip=t.localModeTip;
+  $('#btnHow').textContent=t.howToPlay;
+  $('#howList').innerHTML=t.howSteps.map(s=>'<li>'+esc(s)+'</li>').join('');
+
+  $('#lobbyTitle').textContent=t.lobby;
+  $('#codeLbl').textContent=t.roomCodeLbl;
+  if($('#copyNote').textContent!==t.copied)$('#copyNote').textContent=t.copyNote;
+  $('#playersTitle').textContent=t.players;
+  $('#settingsTitle').textContent=t.settings;
+  $('#langLbl').textContent=t.language;
+  $('#langSet').dataset.tip=t.languageTip;
+  $('#bankLbl').textContent=t.wordBank;
+  $('#bankSet').dataset.tip=t.wordBankTip;
+  $('#customTopicIn').placeholder=t.customTopicPh;
+  $('#secLbl').textContent=t.roundLen;
+  $('#secSet').dataset.tip=t.roundLenTip;
+  const secOpts=$('#secSel').options;
+  if(secOpts.length===5){
+    secOpts[0].textContent=t.sec45;
+    secOpts[1].textContent=t.sec60;
+    secOpts[2].textContent=t.sec90;
+    secOpts[3].textContent=t.sec120;
+    secOpts[4].textContent=t.sec180;
+  }
+  $('#roundsLbl').textContent=t.rounds;
+  $('#roundsSet').dataset.tip=t.roundsTip;
+  $('#extraLbl').textContent=t.extraBlocked;
+  $('#extraSet').dataset.tip=t.extraBlockedTip;
+  $('#maxSkipsLbl').textContent=t.maxSkips;
+  $('#skipsSet').dataset.tip=t.maxSkipsTip;
+  $('#limitSkipsTxt').textContent=t.limitSkips;
+  $('#skipCostLbl').textContent=t.skipCost;
+  $('#skipCostSet').dataset.tip=t.skipCostTip;
+  $('#maxLbl').textContent=t.maxPlayers;
+  $('#maxSet').dataset.tip=t.maxPlayersTip;
+  $('#anonLbl').textContent=t.anonMode;
+  $('#anonSet').dataset.tip=t.anonModeTip;
+  $('#btnStart').textContent=t.startGame;
+  $('#btnLeave').textContent=t.leave;
+  $('#btnLeave2').textContent=t.leave;
+  $('#waitNote').textContent=t.waitHostStart;
+  $('#btnSend').textContent=t.send;
+  $('#revealTitle').textContent=t.timeIsUp;
+  $('#revealWait').textContent=t.waitHost;
+  $('#finalTitle').textContent=t.finalScoresTitle;
+  $('#btnAgain').textContent=t.backToLobby;
+  $('#finalWait').textContent=t.waitHost;
+
+  const bankLabels={
+    mixed:t.fbMixed,animals:t.fbAnimals,food:t.fbFood,
+    objects:t.fbObjects,nature:t.fbNature,pop:t.fbPop,topic:t.customTopic
+  };
+  Array.from($('#bankSel').options).forEach(opt=>{
+    if(bankLabels[opt.value])opt.textContent=bankLabels[opt.value];
+    else if(opt.value.startsWith('corpora:')){
+      const folder=opt.value.slice('corpora:'.length);
+      opt.textContent=t.webPrefix+folder.replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    }
+  });
+}
 
 function markSeen(mid){
   if(!mid)return false;
@@ -569,35 +965,38 @@ async function populateDynamicCategoryOptions(){
   if(!folders.length)return;
   S.dynamicFolders=folders;
   const topicOpt=sel.querySelector('option[value="topic"]');
+  const prefix=getT(S.settings.lang).webPrefix;
   for(const folder of folders){
     const val='corpora:'+folder;
     if(sel.querySelector('option[value="'+val+'"]'))continue;
     const opt=document.createElement('option');
     opt.value=val;
-    opt.textContent='Web: '+folder.replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    opt.textContent=prefix+folder.replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
     sel.insertBefore(opt,topicOpt||null);
   }
   if(S.settings&&S.settings.bank)sel.value=S.settings.bank;
 }
 
 const bankCache=new Map();
-function getFallbackWords(bankKey){
-  if(FALLBACK_WORD_BANKS[bankKey])return cleanBank([FALLBACK_WORD_BANKS[bankKey].words]);
-  return cleanBank([FALLBACK_WORD_BANKS.mixed.words]);
+function getFallbackWords(bankKey,lang='en'){
+  const langBanks=FALLBACK_WORD_BANKS[lang]||FALLBACK_WORD_BANKS.en;
+  const arr=langBanks[bankKey]||langBanks.mixed||FALLBACK_WORD_BANKS.en.mixed;
+  return cleanBank([arr],lang);
 }
 
-async function fetchTopicWords(topicStr){
-  const topics=norm(topicStr).split(' ').filter(Boolean).slice(0,5).join(',');
-  if(!topics)return[];
-  const url=DATAMUSE_WORDS_URL+'?topics='+encodeURIComponent(topics)+'&md=p&max=250';
+async function fetchTopicWords(topicStr,lang='en'){
+  const seed=norm(topicStr,lang).split(' ').filter(Boolean).slice(0,5).join(',');
+  const topics=seed||getLangMeta(lang).topicSeed;
+  const langParam=lang&&lang!=='en'?('&lang='+encodeURIComponent(lang)):'';
+  const url=DATAMUSE_WORDS_URL+'?topics='+encodeURIComponent(topics)+langParam+'&md=p&max=250';
   const data=await fetchJson(url,CONFIG.timeoutMs);
   if(!Array.isArray(data))return[];
   const nouns=data.filter(d=>d&&Array.isArray(d.tags)&&d.tags.includes('n')).map(d=>d.word);
-  const pool=nouns.length>=25?nouns:data.map(d=>d&&d.word);
-  return cleanBank([pool]);
+  const pool=nouns.length>=20?nouns:data.map(d=>d&&d.word);
+  return cleanBank([pool],lang);
 }
 
-async function fetchCorporaFolderWords(folder){
+async function fetchCorporaFolderWords(folder,lang='en'){
   const entries=await fetchJson(CORPORA_API_BASE+'/'+encodeURIComponent(folder),CONFIG.timeoutMs);
   if(!Array.isArray(entries))return[];
   const jsonFiles=entries
@@ -611,39 +1010,51 @@ async function fetchCorporaFolderWords(folder){
         .catch(()=>[])
     )
   );
-  return cleanBank(rawArrays);
+  // If non-English, enrich with Datamuse topic words in that language so the word bank matches the chosen language
+  if(lang&&lang!=='en'){
+    const topicWords=await fetchTopicWords(folder.replace(/[_-]+/g,' '),lang).catch(()=>[]);
+    if(topicWords.length>=15)return topicWords;
+  }
+  return cleanBank(rawArrays,lang);
 }
 
-function getBank(bankKey,customTopic){
+function getBank(bankKey,customTopic,lang='en'){
   const key=bankKey||'mixed';
-  const cacheKey=key==='topic'?('topic:'+norm(customTopic||'')):key;
+  const l=LANG_META[lang]?lang:'en';
+  const cacheKey=l+':'+(key==='topic'?('topic:'+norm(customTopic||'',l)):key);
   if(!bankCache.has(cacheKey)){
     const p=(async()=>{
       if(key==='topic'){
-        const words=await fetchTopicWords(customTopic);
-        return words.length>=15?words:getFallbackWords('mixed');
+        const words=await fetchTopicWords(customTopic,l);
+        return words.length>=15?words:getFallbackWords('mixed',l);
       }
       if(key.startsWith('corpora:')){
         const folder=key.slice('corpora:'.length);
-        const words=await fetchCorporaFolderWords(folder);
-        return words.length>=15?words:getFallbackWords('mixed');
+        const words=await fetchCorporaFolderWords(folder,l);
+        return words.length>=15?words:getFallbackWords('mixed',l);
       }
-      const fb=getFallbackWords(key);
-      return fb.length?fb:getFallbackWords('mixed');
-    })().catch(()=>getFallbackWords(key.startsWith('corpora:')?'mixed':key));
+      if(l!=='en'){
+        const topicWords=await fetchTopicWords(key==='mixed'?getLangMeta(l).topicSeed:key,l).catch(()=>[]);
+        if(topicWords.length>=15)return topicWords;
+      }
+      const fb=getFallbackWords(key,l);
+      return fb.length?fb:getFallbackWords('mixed',l);
+    })().catch(()=>getFallbackWords(key.startsWith('corpora:')?'mixed':key,l));
     bankCache.set(cacheKey,p);
   }
   return bankCache.get(cacheKey);
 }
 
 async function prepare(g){
+  const lang=S.settings.lang||'en';
   const word=pickWord(g.bank,g.used);
   let blocked=[];
   const want=S.settings.extra;
   if(want>0){
     try{
-      const arr=await fetchJson(DATAMUSE_WORDS_URL+'?ml='+encodeURIComponent(word)+'&max=60',CONFIG.timeoutMs);
-      blocked=pickRelated(Array.isArray(arr)?arr:[],word,want);
+      const langParam=lang&&lang!=='en'?('&lang='+encodeURIComponent(lang)):'';
+      const arr=await fetchJson(DATAMUSE_WORDS_URL+'?ml='+encodeURIComponent(word)+langParam+'&max=60',CONFIG.timeoutMs);
+      blocked=pickRelated(Array.isArray(arr)?arr:[],word,want,lang);
     }catch(e){g.relatedFailed=true;}
   }
   return {word,blocked};
@@ -943,8 +1354,9 @@ function localJoin(code,h){
 /* ---------------- menu / room setup ---------------- */
 function setErr(m){$('#menuErr').textContent=m||'';}
 function getName(){
+  const t=getT(S.settings.lang);
   const n=$('#nameIn').value.replace(/\s+/g,' ').trim().slice(0,14);
-  if(!n){setErr('Please enter a name first.');$('#nameIn').focus();return null;}
+  if(!n){setErr(t.enterNameErr);$('#nameIn').focus();return null;}
   try{localStorage.setItem('ellis-name',n);}catch(e){}
   return n;
 }
@@ -971,6 +1383,7 @@ function createRoom(){
   leaveToMenu();
   const code=genCode();
   S.isHost=true;S.code=code;S.id='host';S.players=[{id:'host',name}];S.settings=defaults();
+  applyLanguageUI(S.settings.lang);
   G={phase:'lobby',order:[],queue:[],used:new Set(),names:{},scores:{},idx:0};
   setErr('Creating room '+code+'...');
   const h={
@@ -978,7 +1391,7 @@ function createRoom(){
       setErr('');
       broadcastLobby();
       populateDynamicCategoryOptions().then(()=>broadcastLobby()).catch(()=>{});
-      getBank(S.settings.bank,S.settings.customTopic).catch(()=>{});
+      getBank(S.settings.bank,S.settings.customTopic,S.settings.lang).catch(()=>{});
     },
     onMsg:hostHandle,
     onLeave:hostLeave,
@@ -990,8 +1403,9 @@ function createRoom(){
 
 function joinRoom(){
   const name=getName(); if(!name)return;
+  const t=getT(S.settings.lang);
   const code=$('#codeIn').value.trim().toUpperCase().replace(/[^A-Z]/g,'');
-  if(code.length!==5){setErr('Enter the 5-letter room code.');$('#codeIn').focus();return;}
+  if(code.length!==5){setErr(t.enterCodeErr);$('#codeIn').focus();return;}
   S.local=$('#localMode').checked;
   if(S.local&&SANDBOXED){setErr(SANDBOX_MSG);return;}
   leaveToMenu();
@@ -1003,7 +1417,7 @@ function joinRoom(){
       setTimeout(()=>{if(!S.welcomed&&S.net)S.net.send({t:'hello',name});},2000);
     },
     onMsg:clientHandle,
-    onClose:()=>{if(S.net)leaveToMenu('The host closed the room.');},
+    onClose:()=>{if(S.net)leaveToMenu(getT(S.settings.lang).hostClosed);},
     onError:e=>{if(S.net)leaveToMenu('Connection problem ('+((e&&e.type)||'network error')+').');}
   };
   log('joining',code,S.local?'(same-browser)':'(network)');
@@ -1033,10 +1447,11 @@ function sendToHost(m){
 }
 
 function hostHandle(from,m){
+  const t=getT(S.settings.lang);
   if(!G||!m)return;
   if(m.t==='hello'){
-    if(G.phase!=='lobby'){send(from,{t:'denied',reason:'That game has already started.'});return;}
-    if(S.players.length>=S.settings.max&&!S.players.some(p=>p.id===from)){send(from,{t:'denied',reason:'That room is full.'});return;}
+    if(G.phase!=='lobby'){send(from,{t:'denied',reason:t.alreadyStarted});return;}
+    if(S.players.length>=S.settings.max&&!S.players.some(p=>p.id===from)){send(from,{t:'denied',reason:t.roomFull});return;}
     if(!S.players.some(p=>p.id===from)){
       const base=String(m.name||'').replace(/\s+/g,' ').trim().slice(0,14)||'Player';
       let name=base,k=2;
@@ -1075,7 +1490,7 @@ function hostLeave(id){
   G.order=G.order.filter((x,j)=>!(x===id&&j>G.idx));
   if(S.players.length<3){
     clearTimeout(G.timer);G.phase='lobby';
-    broadcastLobby('Not enough players left (at least 3 required), so the game went back to the lobby.');
+    broadcastLobby(getT(S.settings.lang).leftNeed3);
     return;
   }
   if(G.phase==='round'&&id===G.chosenId)endRound();
@@ -1084,9 +1499,11 @@ function hostLeave(id){
 function applySettings(){
   if(!S.isHost||!G||G.phase!=='lobby')return;
   const s=S.settings;
-  const prevBank=s.bank, prevTopic=s.customTopic;
+  const prevLang=s.lang, prevBank=s.bank, prevTopic=s.customTopic;
+  const langVal=$('#langSel').value;
+  s.lang=LANG_META[langVal]?langVal:'en';
   const selVal=$('#bankSel').value;
-  s.bank=(FALLBACK_WORD_BANKS[selVal]||selVal==='topic'||selVal.startsWith('corpora:'))?selVal:'mixed';
+  s.bank=(FALLBACK_WORD_BANKS.en[selVal]||selVal==='topic'||selVal.startsWith('corpora:'))?selVal:'mixed';
   s.customTopic=$('#customTopicIn').value.trim().slice(0,40);
   s.seconds=+$('#secSel').value||90;
   s.rounds=clamp(parseInt($('#roundsIn').value,10)||1,1,20);
@@ -1096,29 +1513,32 @@ function applySettings(){
   s.skipCost=Math.max(0,parseFloat($('#skipCostIn').value)||0);
   s.max=clamp(parseInt($('#maxIn').value,10)||8,Math.max(3,S.players.length),16);
   s.anon=$('#anonChk').checked;
-  if(s.bank!==prevBank||s.customTopic!==prevTopic)getBank(s.bank,s.customTopic).catch(()=>{});
+  applyLanguageUI(s.lang);
+  if(s.lang!==prevLang||s.bank!==prevBank||s.customTopic!==prevTopic){
+    getBank(s.bank,s.customTopic,s.lang).catch(()=>{});
+  }
   broadcastLobby();
 }
 
 async function startGame(){
   if(!G||G.phase!=='lobby'||S.players.length<3)return;
   G.phase='starting';
-  const s=S.settings;
+  const s=S.settings, t=getT(s.lang);
   const bankLabel=s.bank==='topic'
-    ?('topic "'+(s.customTopic||'mixed')+'"')
-    :(s.bank.startsWith('corpora:')?s.bank.slice('corpora:'.length):((FALLBACK_WORD_BANKS[s.bank]||FALLBACK_WORD_BANKS.mixed).label));
-  broadcastLobby('Fetching '+bankLabel+' words...');
+    ?(s.customTopic||t.fbMixed)
+    :(s.bank.startsWith('corpora:')?s.bank.slice('corpora:'.length):(t['fb'+s.bank[0].toUpperCase()+s.bank.slice(1)]||t.fbMixed));
+  broadcastLobby(t.loadingBank(bankLabel));
   const g=G;
   try{
-    g.bank=await getBank(s.bank,s.customTopic);
+    g.bank=await getBank(s.bank,s.customTopic,s.lang);
     g.used=new Set();g.queue=[];g.relatedFailed=false;
     await ensureQueue(1);
   }catch(e){
-    if(G===g){g.phase='lobby';broadcastLobby('Could not load words. Press Start again.');}
+    if(G===g){g.phase='lobby';broadcastLobby(t.loadBankErr);}
     return;
   }
   if(G!==g||g.phase!=='starting')return;
-  if(S.players.length<3){g.phase='lobby';broadcastLobby('You need at least 3 players to start.');return;}
+  if(S.players.length<3){g.phase='lobby';broadcastLobby(t.need3Start);return;}
   g.order=buildOrder(S.players.map(p=>p.id),S.settings.rounds);
   g.idx=0;g.scores={};g.names={};
   S.players.forEach(p=>{g.names[p.id]=p.name;g.scores[p.id]=0;});
@@ -1131,13 +1551,13 @@ async function startRound(){
   if(G!==g||g.phase!=='preparing')return;
   g.phase='round';
   const anon=!!S.settings.anon;
-  const al=shuffle(ALIASES.slice());g.aliases={};g.anon=anon;
-  S.players.forEach((p,i)=>{g.aliases[p.id]=anon?al[i]:p.name;});
+  const al=shuffle(getLangMeta(S.settings.lang).aliasPool.slice());g.aliases={};g.anon=anon;
+  S.players.forEach((p,i)=>{g.aliases[p.id]=anon?al[i%al.length]:p.name;});
   g.ms=S.settings.seconds*1000;
   broadcast({t:'round',n:g.idx+1,total:g.order.length,ms:g.ms,aliases:g.aliases,anon});
   if(g.relatedFailed){
     g.relatedFailed=false;
-    broadcast({t:'sys',text:'Related words could not be loaded, so only the word itself is blocked.'});
+    broadcast({t:'sys',text:getT(S.settings.lang).relatedFail});
   }
   nextWord();
   g.timer=setTimeout(endRound,g.ms);
@@ -1172,11 +1592,12 @@ function onChat(from,text){
   if(now-(G.lastMsg[from]||0)<600)return;
   G.lastMsg[from]=now;
   const alias=G.aliases[from]; if(!alias)return;
+  const lang=S.settings.lang||'en';
   if(from===G.chosenId){
-    if(G.word&&violatesAny(text,G.word,G.blocked)){send(from,{t:'reject'});return;}
+    if(G.word&&violatesAny(text,G.word,G.blocked,lang)){send(from,{t:'reject'});return;}
     broadcast({t:'chat',alias,text,hit:false});
   }else{
-    const hit=G.word?isGuess(text,G.word):false;
+    const hit=G.word?isGuess(text,G.word,lang):false;
     broadcast({t:'chat',alias,text,hit});
     if(hit){G.words.push({word:G.word,by:from});nextWord();}
   }
@@ -1210,6 +1631,7 @@ function clientHandle(m){
     case 'lobby':
       S.welcomed=true;clearTimeout(S.joinTimer);
       S.players=m.players;S.settings=m.settings;S.code=m.code;S.R=null;clearInterval(S.tick);
+      applyLanguageUI(S.settings.lang);
       show('lobby');renderLobby(m.notice,m.busy);break;
     case 'round':startRoundUI(m);break;
     case 'word':
@@ -1225,24 +1647,25 @@ function clientHandle(m){
       break;
     case 'chat':addChat(m);break;
     case 'sys':addLine('sys',m.text);break;
-    case 'reject':addLine('note','That gives away part of the word or a blocked word. Describe it another way.');break;
+    case 'reject':addLine('note',getT(S.settings.lang).rejected);break;
     case 'reveal':clearInterval(S.tick);renderReveal(m);break;
     case 'final':renderFinal(m);break;
   }
 }
 
 function renderLobby(notice,busy){
-  const s=S.settings;
+  const s=S.settings, t=getT(s.lang);
   $('#roomCode').textContent=S.code;
-  $('#netModeNote').textContent=S.local?'Same-browser offline mode':'Multiplayer room (LAN & Online)';
+  $('#netModeNote').textContent=S.local?t.localModeNote:t.netModeNote;
   $('#pCount').textContent='('+S.players.length+'/'+s.max+')';
   $('#plist').innerHTML=S.players.map(p=>
-    '<li><span>'+esc(p.name)+(p.id==='host'?'<span class="tagbit">host</span>':'')+(p.id===S.id?'<span class="tagbit">you</span>':'')+'</span></li>').join('');
+    '<li><span>'+esc(p.name)+(p.id==='host'?'<span class="tagbit">'+esc(t.hostTag)+'</span>':'')+(p.id===S.id?'<span class="tagbit">'+esc(t.selfTag)+'</span>':'')+'</span></li>').join('');
+  $('#langSel').value=s.lang||'en';
   const sel=$('#bankSel');
   if(s.bank&&s.bank.startsWith('corpora:')&&!sel.querySelector('option[value="'+s.bank+'"]')){
     const opt=document.createElement('option');
     opt.value=s.bank;
-    opt.textContent='Web: '+s.bank.slice('corpora:'.length);
+    opt.textContent=t.webPrefix+s.bank.slice('corpora:'.length);
     sel.insertBefore(opt,sel.querySelector('option[value="topic"]')||null);
   }
   sel.value=s.bank||'mixed';
@@ -1260,19 +1683,20 @@ function renderLobby(notice,busy){
   $('#maxIn').min=Math.max(3,S.players.length);
   $('#maxIn').value=s.max;
   $('#anonChk').checked=!!s.anon;
-  ['bankSel','customTopicIn','secSel','roundsIn','extraSel','limitSkipsChk','skipCostIn','maxIn','anonChk'].forEach(id=>{$('#'+id).disabled=!S.isHost||!!busy;});
+  ['langSel','bankSel','customTopicIn','secSel','roundsIn','extraSel','limitSkipsChk','skipCostIn','maxIn','anonChk'].forEach(id=>{$('#'+id).disabled=!S.isHost||!!busy;});
   $('#maxSkipsIn').disabled=!S.isHost||!!busy||!s.limitSkips;
   $('#btnStart').classList.toggle('hidden',!S.isHost);
   $('#btnStart').disabled=S.players.length<3||!!busy;
   $('#waitNote').classList.toggle('hidden',S.isHost);
-  $('#lobbyNote').textContent=notice||(S.isHost&&S.players.length<3?'You need at least 3 players to start.':'');
+  $('#lobbyNote').textContent=notice||(S.isHost&&S.players.length<3?t.need3Start:'');
 }
 
 function startRoundUI(m){
+  const t=getT(S.settings.lang);
   S.R={n:m.n,total:m.total,endsAt:Date.now()+m.ms,ms:m.ms,alias:m.aliases[S.id],anon:m.anon,word:null,blocked:[],count:0,canSkip:true,remainingSkips:Infinity,skipsUsed:0};
   $('#chatLog').innerHTML='';
-  $('#roundInfo').textContent='Round '+m.n+' of '+m.total;
-  $('#youAre').textContent=m.anon?'You appear as '+S.R.alias:'Names are visible this round';
+  $('#roundInfo').textContent=t.roundOf(m.n,m.total);
+  $('#youAre').textContent=m.anon?t.youAppearAs(S.R.alias):t.namesVisible;
   $('#chatIn').value='';
   show('game');renderRole();tick();
   clearInterval(S.tick);S.tick=setInterval(tick,200);
@@ -1280,25 +1704,25 @@ function startRoundUI(m){
 }
 function renderRole(){
   const R=S.R; if(!R)return;
+  const s=S.settings, t=getT(s.lang);
   if(R.word){
-    const s=S.settings;
-    const costTxt=(s.skipCost>0?' (-'+s.skipCost.toFixed(2)+' pts)':'');
+    const costTxt=(s.skipCost>0?' (-'+s.skipCost.toFixed(2)+')':'');
     const skipLabel=!s.limitSkips
-      ?('Skip word (∞'+costTxt+')')
-      :('Skip word ('+Math.max(0,R.remainingSkips)+' left'+costTxt+')');
+      ?t.skipInf(costTxt)
+      :t.skipLeft(Math.max(0,R.remainingSkips),costTxt);
     const actionBtn=R.canSkip
       ?('<button type="button" id="btnSkip">'+esc(skipLabel)+'</button>')
-      :('<button type="button" id="btnGiveUp" class="danger">Give up round</button>');
-    $('#role').innerHTML='<div class="small">You are the chosen one. Your word:</div><div class="theword">'+esc(R.word)+'</div>'+
-      (R.blocked.length?'<div class="blocked">Also blocked: '+R.blocked.map(esc).join(', ')+'</div>':'')+
-      '<div class="small">Get the others to write it. Never say it, or any part of it.</div>'+
-      '<div class="row" style="margin-top:8px"><span>Found: <b>'+R.count+'</b></span>'+actionBtn+'</div>';
+      :('<button type="button" id="btnGiveUp" class="danger">'+esc(t.giveUp)+'</button>');
+    $('#role').innerHTML='<div class="small">'+esc(t.chosenIntro)+'</div><div class="theword">'+esc(R.word)+'</div>'+
+      (R.blocked.length?'<div class="blocked">'+esc(t.alsoBlocked(R.blocked))+'</div>':'')+
+      '<div class="small">'+esc(t.clueRule)+'</div>'+
+      '<div class="row" style="margin-top:8px"><span>'+t.found(R.count)+'</span>'+actionBtn+'</div>';
     if($('#btnSkip'))$('#btnSkip').onclick=()=>sendToHost({t:'skip'});
     if($('#btnGiveUp'))$('#btnGiveUp').onclick=()=>sendToHost({t:'giveup'});
-    $('#chatIn').placeholder='Write a clue...';
+    $('#chatIn').placeholder=t.cluePh;
   }else{
-    $('#role').innerHTML='<div class="small">One of you holds a secret word.</div><div style="font-size:26px">Work out the word and write it in the chat.</div>';
-    $('#chatIn').placeholder='Chat or guess...';
+    $('#role').innerHTML='<div class="small">'+esc(t.guesserIntro)+'</div><div style="font-size:26px">'+esc(t.guesserSub)+'</div>';
+    $('#chatIn').placeholder=t.guessPh;
   }
 }
 function tick(){
@@ -1315,8 +1739,9 @@ function addLine(cls,html,raw){
   logEl.appendChild(p);logEl.scrollTop=logEl.scrollHeight;
 }
 function addChat(m){
+  const t=getT(S.settings.lang);
   const mine=S.R&&m.alias===S.R.alias;
-  addLine((mine?'me ':'')+(m.hit?'hit':''),'<b>'+esc(m.alias)+(mine?' (you)':'')+'</b>'+esc(m.text)+(m.hit?' <span class="small">got it!</span>':''),true);
+  addLine((mine?'me ':'')+(m.hit?'hit':''),'<b>'+esc(m.alias)+(mine?esc(t.youTag):'')+'</b>'+esc(m.text)+(m.hit?' <span class="small">'+esc(t.gotIt)+'</span>':''),true);
 }
 
 function rankRows(names,scores,highlightId,thisRound){
@@ -1325,22 +1750,23 @@ function rankRows(names,scores,highlightId,thisRound){
     (id===highlightId&&thisRound!=null?'<span class="small">'+(thisRound>=0?'+':'')+thisRound.toFixed(2)+'  </span>':'')+scores[id].toFixed(2)+'</td></tr>').join('');
 }
 function renderReveal(m){
+  const t=getT(S.settings.lang);
   const name=id=>esc(m.names[id]||'?');
-  const list=m.words.map(w=>'<li><span>'+esc(w.word)+'</span><span class="small">written by '+name(w.by)+'</span></li>').join('')+
-    (m.missed?'<li class="miss"><span>'+esc(m.missed)+'</span><span class="small">not found</span></li>':'');
+  const list=m.words.map(w=>'<li><span>'+esc(w.word)+'</span><span class="small">'+esc(t.writtenBy(name(w.by)))+'</span></li>').join('')+
+    (m.missed?'<li class="miss"><span>'+esc(m.missed)+'</span><span class="small">'+esc(t.notFound)+'</span></li>':'');
   const who=m.anon?'<div style="line-height:1.9">'+Object.keys(m.aliases).filter(id=>m.names[id]!==undefined).map(id=>
-    '<span style="margin-right:14px"><b style="color:var(--blue)">'+esc(m.aliases[id])+'</b> was '+name(id)+(id===m.chosenId?' <span class="circled">chosen</span>':'')+'</span>').join('')+'</div>':'';
+    t.wasAlias(esc(m.aliases[id]),name(id),id===m.chosenId)).join('')+'</div>':'';
   const penaltyLine=m.skipPenalty>0
-    ?('<div class="center small">Skip cost: -'+m.skipPenalty.toFixed(2)+' pts ('+m.skipsUsed+' skip'+(m.skipsUsed===1?'':'s')+')</div>')
+    ?('<div class="center small">'+esc(t.skipCostSummary(m.skipPenalty.toFixed(2),m.skipsUsed))+'</div>')
     :'';
   $('#revealBody').innerHTML=
-    '<div class="card"><h3>The chosen one was '+name(m.chosenId)+'</h3>'+who+'</div>'+
-    '<div class="card"><h3>Words</h3><ul class="words">'+list+'</ul>'+
-      '<div class="center small">'+m.count+(m.count===1?' word':' words')+' divided by '+m.minutes.toFixed(2)+' min</div>'+
+    '<div class="card"><h3>'+esc(t.chosenWas(name(m.chosenId)))+'</h3>'+who+'</div>'+
+    '<div class="card"><h3>'+esc(t.wordsTitle)+'</h3><ul class="words">'+list+'</ul>'+
+      '<div class="center small">'+esc(t.wordsDivMin(m.count,m.minutes.toFixed(2)))+'</div>'+
       penaltyLine+
-      '<div class="bigpts">'+m.points.toFixed(2)+' points</div></div>'+
-    '<div class="card"><h3>Scores</h3><table class="table">'+rankRows(m.names,m.scores,m.chosenId,m.points)+'</table></div>';
-  $('#btnNext').textContent=m.last?'Final results':'Next round';
+      '<div class="bigpts">'+esc(t.pointsFmt(m.points.toFixed(2)))+'</div></div>'+
+    '<div class="card"><h3>'+esc(t.scoresTitle)+'</h3><table class="table">'+rankRows(m.names,m.scores,m.chosenId,m.points)+'</table></div>';
+  $('#btnNext').textContent=m.last?t.finalResults:t.nextRound;
   $('#btnNext').classList.toggle('hidden',!S.isHost);
   $('#revealWait').classList.toggle('hidden',S.isHost);
   show('reveal');
@@ -1375,9 +1801,11 @@ $('#btnLeave2').onclick=()=>leaveToMenu();
 $('#btnStart').onclick=startGame;
 $('#btnNext').onclick=nextRound;
 $('#btnAgain').onclick=backToLobby;
-['secSel','roundsIn','extraSel','maxSkipsIn','skipCostIn','maxIn','anonChk'].forEach(id=>$('#'+id).addEventListener('change',applySettings));
+['langSel','secSel','roundsIn','extraSel','maxSkipsIn','skipCostIn','maxIn','anonChk'].forEach(id=>$('#'+id).addEventListener('change',applySettings));
 $('#roomCode').onclick=()=>{
-  try{navigator.clipboard.writeText(S.code);$('#copyNote').textContent='Copied.';setTimeout(()=>{$('#copyNote').textContent='Share this 5-letter code. Click it to copy.';},1500);}catch(e){}
+  const copiedTxt=getT(S.settings.lang).copied;
+  const shareTxt=getT(S.settings.lang).copyNote;
+  try{navigator.clipboard.writeText(S.code);$('#copyNote').textContent=copiedTxt;setTimeout(()=>{$('#copyNote').textContent=shareTxt;},1500);}catch(e){}
 };
 $('#chatForm').addEventListener('submit',e=>{
   e.preventDefault();
@@ -1386,6 +1814,7 @@ $('#chatForm').addEventListener('submit',e=>{
   sendToHost({t:'chat',text:v});
 });
 try{const n=localStorage.getItem('ellis-name');if(n)$('#nameIn').value=n;}catch(e){}
+applyLanguageUI(S.settings.lang);
 })();
 </script>
 </body>

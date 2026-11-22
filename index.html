@@ -182,7 +182,7 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
     </div>
     <div class="card">
       <h3>Game settings</h3>
-      <label class="set tip" data-tip="Queries the online word APIs directly in the selected language.">
+      <label class="set tip" data-tip="Looks up words and related terms for your chosen topic or word in the selected language via API.">
         <span>Word language</span>
         <select id="langSel">
           <option value="en">English (en)</option>
@@ -196,14 +196,14 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
           <option value="ar">Arabic (ar)</option>
         </select>
       </label>
-      <div class="set tip" data-tip="Discovers word categories dynamically from web APIs in the selected language or searches a custom topic via API. Built-in fallback banks only appear if the web APIs fail to return.">
+      <div class="set tip" data-tip="Discovers word categories dynamically from web sources or looks up a custom topic in the selected language via API. Fallback banks only appear if web sources do not return.">
         <span>Word bank</span>
         <div class="set-right">
           <select id="bankSel">
             <option value="web:mixed">Web: Mixed</option>
             <option value="topic">Custom Topic (API)</option>
           </select>
-          <input id="customTopicIn" class="hidden" maxlength="40" placeholder="Enter topic in selected language" autocomplete="off">
+          <input id="customTopicIn" class="hidden" maxlength="40" placeholder="Enter topic or word" autocomplete="off">
         </div>
       </div>
       <label class="set tip" data-tip="How long each round lasts. The chosen player tries to get as many words written as they can before the timer runs out.">
@@ -280,7 +280,7 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
 (()=>{
 'use strict';
 
-/* ---------------- dynamic language-native APIs & fallback word banks ---------------- */
+/* ---------------- dynamic web lookup & fallback word banks ---------------- */
 const CORPORA_API_BASE='https://api.github.com/repos/dariusk/corpora/contents/data';
 const CORPORA_RAW_BASE='https://raw.githubusercontent.com/dariusk/corpora/master/data/';
 const DATAMUSE_WORDS_URL='https://api.datamuse.com/words';
@@ -495,7 +495,7 @@ function markSeen(mid){
   return false;
 }
 
-/* ---------------- dynamic language-native API queries ---------------- */
+/* ---------------- dynamic web lookup for the word/topic in question ---------------- */
 async function fetchJson(url,ms){
   const ac=new AbortController();const t=setTimeout(()=>ac.abort(),ms);
   try{
@@ -505,32 +505,19 @@ async function fetchJson(url,ms){
   }finally{clearTimeout(t);}
 }
 
-const foldersByLangCache=new Map();
-function discoverWebCategories(lang){
-  const code=SUPPORTED_LANGS[lang]?lang:'en';
-  if(!foldersByLangCache.has(code)){
-    const p=(async()=>{
-      if(code==='en'){
-        const items=await fetchJson(CORPORA_API_BASE,CONFIG.timeoutMs);
+let corporaFoldersPromise=null;
+function discoverCorporaFolders(){
+  if(!corporaFoldersPromise){
+    corporaFoldersPromise=fetchJson(CORPORA_API_BASE,CONFIG.timeoutMs)
+      .then(items=>{
         if(!Array.isArray(items))return[];
         return items
           .filter(it=>it&&it.type==='dir'&&typeof it.name==='string'&&/^[a-z0-9_-]+$/i.test(it.name))
-          .map(it=>({value:'corpora:'+it.name,label:'Web: '+it.name.replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}));
-      }
-      // Query Wikipedia/Wiktionary API in the target language to discover live categories
-      const wikiCode=SUPPORTED_LANGS[code].wiki;
-      const apiUrl='https://'+wikiCode+'.wikipedia.org/w/api.php?action=query&list=allcategories&acmin=30&aclimit=25&format=json&origin=*';
-      const data=await fetchJson(apiUrl,CONFIG.timeoutMs);
-      const cats=(data&&data.query&&Array.isArray(data.query.allcategories))?data.query.allcategories:[];
-      return cats
-        .map(c=>c&&c['*'])
-        .filter(name=>typeof name==='string'&&name.length>=3&&name.length<=32&&!/[:0-9]/.test(name))
-        .slice(0,18)
-        .map(name=>({value:'wikicat:'+code+':'+name,label:'Web: '+name}));
-    })().catch(()=>[]);
-    foldersByLangCache.set(code,p);
+          .map(it=>it.name);
+      })
+      .catch(()=>[]);
   }
-  return foldersByLangCache.get(code);
+  return corporaFoldersPromise;
 }
 
 function showFallbackOptionsInSelect(includeAllFallbacks){
@@ -550,41 +537,29 @@ function showFallbackOptionsInSelect(includeAllFallbacks){
   }
 }
 
-async function populateDynamicCategoryOptions(lang){
+async function populateDynamicCategoryOptions(){
   const sel=$('#bankSel');
-  if(!sel)return;
-  const code=SUPPORTED_LANGS[lang]?lang:'en';
-  if(sel.dataset.loadedLang===code)return;
-  sel.dataset.loadedLang=code;
-
-  // Remove previous dynamic category options (corpora:* or wikicat:*)
-  Array.from(sel.options).forEach(opt=>{
-    if(opt.value.startsWith('corpora:')||opt.value.startsWith('wikicat:')){
-      opt.remove();
-    }
-  });
-
-  const cats=await discoverWebCategories(code);
-  if(!cats.length){
+  if(!sel||sel.dataset.foldersLoaded)return;
+  sel.dataset.foldersLoaded='1';
+  const folders=await discoverCorporaFolders();
+  if(!folders.length){
     showFallbackOptionsInSelect(true);
-    if(S.settings&&S.settings.bank&&(S.settings.bank.startsWith('corpora:')||S.settings.bank.startsWith('wikicat:'))){
+    if(S.settings&&S.settings.bank&&S.settings.bank.startsWith('corpora:')){
       S.settings.bank='web:mixed';
     }
     if(S.settings&&S.settings.bank)sel.value=S.settings.bank;
     return;
   }
-
   const topicOpt=sel.querySelector('option[value="topic"]');
-  for(const cat of cats){
-    if(sel.querySelector('option[value="'+cat.value+'"]'))continue;
+  for(const folder of folders){
+    const val='corpora:'+folder;
+    if(sel.querySelector('option[value="'+val+'"]'))continue;
     const opt=document.createElement('option');
-    opt.value=cat.value;
-    opt.textContent=cat.label;
+    opt.value=val;
+    opt.textContent='Web: '+folder.replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
     sel.insertBefore(opt,topicOpt||null);
   }
-  if(S.settings&&S.settings.bank&&sel.querySelector('option[value="'+S.settings.bank+'"]')){
-    sel.value=S.settings.bank;
-  }
+  if(S.settings&&S.settings.bank)sel.value=S.settings.bank;
 }
 
 const bankCache=new Map();
@@ -593,11 +568,11 @@ function getFallbackWords(bankKey){
   return cleanBank([FALLBACK_WORD_BANKS.mixed.words]);
 }
 
-async function fetchDatamuseWords(queryParamName,queryValue,lang){
+async function fetchDatamuseForQuery(paramName,queryVal,lang){
   const spec=SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en;
-  const q=norm(queryValue);
+  const q=norm(queryVal);
   if(!q)return[];
-  const params=new URLSearchParams({[queryParamName]:q,max:'250'});
+  const params=new URLSearchParams({[paramName]:q,max:'250'});
   if(lang==='en')params.set('md','p');
   if(spec.datamuseV)params.set('v',spec.datamuseV);
   const data=await fetchJson(DATAMUSE_WORDS_URL+'?'+params.toString(),CONFIG.timeoutMs);
@@ -626,53 +601,47 @@ async function fetchCorporaFolderWords(folder){
   return cleanBank(rawArrays);
 }
 
-async function fetchWikiCategoryWords(lang,categoryTitle){
-  const wikiCode=(SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en).wiki;
-  const url='https://'+wikiCode+'.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:'+encodeURIComponent(categoryTitle)+'&cmnamespace=0&cmlimit=200&format=json&origin=*';
-  const data=await fetchJson(url,CONFIG.timeoutMs);
-  const members=(data&&data.query&&Array.isArray(data.query.categorymembers))?data.query.categorymembers:[];
-  return cleanBank([members.map(m=>m&&m.title)]);
-}
+// Looks up words matching the specific query/word in question on Wiktionary & Wikipedia for the selected language
+async function fetchTargetLangQueryWords(queryText,lang){
+  const spec=SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en;
+  const cleanQ=norm(queryText);
+  if(!cleanQ)return[];
+  const lists=[];
 
-async function fetchWikiRandomWords(lang){
-  const wikiCode=(SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en).wiki;
-  const urls=[
-    'https://'+wikiCode+'.wiktionary.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=150&format=json&origin=*',
-    'https://'+wikiCode+'.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=150&format=json&origin=*'
-  ];
-  const results=await Promise.all(
-    urls.map(u=>fetchJson(u,CONFIG.timeoutMs)
-      .then(d=>(d&&d.query&&Array.isArray(d.query.random))?d.query.random.map(r=>r&&r.title):[])
-      .catch(()=>[]))
-  );
-  return cleanBank(results);
-}
+  if(spec.datamuseV){
+    const dm=await fetchDatamuseForQuery('ml',cleanQ,lang).catch(()=>[]);
+    if(dm.length)lists.push(dm);
+  }
 
-async function fetchWikiSearchWords(lang,topic){
-  const wikiCode=(SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en).wiki;
-  const url='https://'+wikiCode+'.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(topic)+'&srnamespace=0&srlimit=100&format=json&origin=*';
-  const data=await fetchJson(url,CONFIG.timeoutMs);
-  const hits=(data&&data.query&&Array.isArray(data.query.search))?data.query.search:[];
-  return cleanBank([hits.map(h=>h&&h.title)]);
+  const wikiCode=spec.wiki;
+  const wiktUrl='https://'+wikiCode+'.wiktionary.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(cleanQ)+'&srnamespace=0&srlimit=100&format=json&origin=*';
+  const wikiUrl='https://'+wikiCode+'.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(cleanQ)+'&srnamespace=0&srlimit=100&format=json&origin=*';
+  const [wiktData,wikiData]=await Promise.all([
+    fetchJson(wiktUrl,CONFIG.timeoutMs).catch(()=>null),
+    fetchJson(wikiUrl,CONFIG.timeoutMs).catch(()=>null)
+  ]);
+
+  const wiktHits=(wiktData&&wiktData.query&&Array.isArray(wiktData.query.search))?wiktData.query.search.map(h=>h&&h.title):[];
+  const wikiHits=(wikiData&&wikiData.query&&Array.isArray(wikiData.query.search))?wikiData.query.search.map(h=>h&&h.title):[];
+  lists.push(wiktHits,wikiHits);
+  return cleanBank(lists);
 }
 
 async function fetchWebMixedWords(lang){
-  const spec=SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en;
   if(lang==='en'){
-    const cats=await discoverWebCategories('en');
-    const chosen=shuffle(cats.slice()).slice(0,3);
+    const folders=await discoverCorporaFolders();
+    const chosen=shuffle(folders.slice()).slice(0,3);
     const folderLists=await Promise.all(
-      chosen.map(c=>fetchCorporaFolderWords(c.value.slice('corpora:'.length)).catch(()=>[]))
+      chosen.map(folder=>fetchCorporaFolderWords(folder).catch(()=>[]))
     );
-    const topicList=await fetchDatamuseWords('topics','objects,animals,food,nature','en').catch(()=>[]);
+    const topicList=await fetchDatamuseForQuery('topics','objects,animals,food,nature','en').catch(()=>[]);
     return cleanBank([...folderLists,topicList]);
   }
-  const tasks=[fetchWikiRandomWords(lang)];
-  if(spec.datamuseV){
-    tasks.push(fetchDatamuseWords('topics','animales,comida,objetos,naturaleza',lang).catch(()=>[]));
-  }
-  const lists=await Promise.all(tasks);
-  return cleanBank(lists);
+  const seedQueries=['animal','food','nature','object','city'];
+  const perQuery=await Promise.all(
+    seedQueries.map(q=>fetchTargetLangQueryWords(q,lang).catch(()=>[]))
+  );
+  return cleanBank(perQuery);
 }
 
 function getBank(bankKey,customTopic,lang){
@@ -682,15 +651,14 @@ function getBank(bankKey,customTopic,lang){
   if(!bankCache.has(cacheKey)){
     const p=(async()=>{
       if(key==='topic'){
-        const topic=(customTopic||'').trim();
-        let words=[];
-        if(activeLang==='en'||(SUPPORTED_LANGS[activeLang]&&SUPPORTED_LANGS[activeLang].datamuseV)){
-          words=await fetchDatamuseWords('ml',topic,activeLang).catch(()=>[]);
+        const topic=(customTopic||'').trim()||'general';
+        if(activeLang==='en'){
+          const words=await fetchDatamuseForQuery('ml',topic,'en');
+          if(words.length>=12)return words;
+          showFallbackOptionsInSelect(true);
+          return getFallbackWords('mixed');
         }
-        if(words.length<12&&topic){
-          const wikiWords=await fetchWikiSearchWords(activeLang,topic).catch(()=>[]);
-          words=cleanBank([words,wikiWords]);
-        }
+        const words=await fetchTargetLangQueryWords(topic,activeLang);
         if(words.length>=12)return words;
         showFallbackOptionsInSelect(true);
         return getFallbackWords('mixed');
@@ -703,20 +671,19 @@ function getBank(bankKey,customTopic,lang){
       }
       if(key.startsWith('corpora:')){
         const folder=key.slice('corpora:'.length);
-        const words=await fetchCorporaFolderWords(folder);
-        if(words.length>=12)return words;
-        showFallbackOptionsInSelect(true);
-        return getFallbackWords('mixed');
-      }
-      if(key.startsWith('wikicat:')){
-        const rest=key.slice('wikicat:'.length);
-        const sep=rest.indexOf(':');
-        const catLang=sep>0?rest.slice(0,sep):activeLang;
-        const catTitle=sep>0?rest.slice(sep+1):rest;
-        const words=await fetchWikiCategoryWords(catLang,catTitle);
-        if(words.length>=12)return words;
-        const mixedFallback=await fetchWebMixedWords(catLang).catch(()=>[]);
-        if(mixedFallback.length>=12)return mixedFallback;
+        const rawWords=await fetchCorporaFolderWords(folder);
+        if(activeLang==='en'){
+          if(rawWords.length>=12)return rawWords;
+          showFallbackOptionsInSelect(true);
+          return getFallbackWords('mixed');
+        }
+        // Look up the category's terms in the selected language via API
+        const sampleTerms=shuffle(rawWords.slice()).slice(0,8);
+        const langLists=await Promise.all(
+          sampleTerms.map(term=>fetchTargetLangQueryWords(term,activeLang).catch(()=>[]))
+        );
+        const translatedWords=cleanBank(langLists);
+        if(translatedWords.length>=12)return translatedWords;
         showFallbackOptionsInSelect(true);
         return getFallbackWords('mixed');
       }
@@ -739,11 +706,23 @@ async function prepare(g){
   const want=S.settings.extra;
   if(want>0){
     try{
-      const spec=SUPPORTED_LANGS[S.settings.lang]||SUPPORTED_LANGS.en;
-      const params=new URLSearchParams({ml:word,max:'60'});
-      if(spec.datamuseV)params.set('v',spec.datamuseV);
-      const arr=await fetchJson(DATAMUSE_WORDS_URL+'?'+params.toString(),CONFIG.timeoutMs);
-      blocked=pickRelated(Array.isArray(arr)?arr:[],word,want);
+      const activeLang=S.settings.lang||'en';
+      const spec=SUPPORTED_LANGS[activeLang]||SUPPORTED_LANGS.en;
+      if(activeLang==='en'||spec.datamuseV){
+        const params=new URLSearchParams({ml:word,max:'60'});
+        if(spec.datamuseV)params.set('v',spec.datamuseV);
+        const arr=await fetchJson(DATAMUSE_WORDS_URL+'?'+params.toString(),CONFIG.timeoutMs);
+        blocked=pickRelated(Array.isArray(arr)?arr:[],word,want);
+      }
+      if(blocked.length<want){
+        const wikiRelated=await fetchTargetLangQueryWords(word,activeLang).catch(()=>[]);
+        const extraCands=wikiRelated.map(w=>({word:w}));
+        const more=pickRelated(extraCands,word,want*2);
+        for(const m of more){
+          if(blocked.length>=want)break;
+          if(!blocked.includes(m)&&!violates(m,word))blocked.push(m);
+        }
+      }
     }catch(e){g.relatedFailed=true;}
   }
   return {word,blocked};
@@ -1077,7 +1056,7 @@ function createRoom(){
     onReady:()=>{
       setErr('');
       broadcastLobby();
-      populateDynamicCategoryOptions(S.settings.lang).then(()=>broadcastLobby()).catch(()=>{});
+      populateDynamicCategoryOptions().then(()=>broadcastLobby()).catch(()=>{});
       getBank(S.settings.bank,S.settings.customTopic,S.settings.lang).catch(()=>{});
     },
     onMsg:hostHandle,
@@ -1187,13 +1166,8 @@ function applySettings(){
   const prevLang=s.lang, prevBank=s.bank, prevTopic=s.customTopic;
   const langVal=$('#langSel').value;
   s.lang=SUPPORTED_LANGS[langVal]?langVal:'en';
-  if(s.lang!==prevLang){
-    s.bank='web:mixed';
-    populateDynamicCategoryOptions(s.lang).then(()=>broadcastLobby()).catch(()=>{});
-  }else{
-    const selVal=$('#bankSel').value;
-    s.bank=(selVal==='web:mixed'||selVal==='topic'||selVal.startsWith('corpora:')||selVal.startsWith('wikicat:')||selVal.startsWith('fallback:'))?selVal:'web:mixed';
-  }
+  const selVal=$('#bankSel').value;
+  s.bank=(selVal==='web:mixed'||selVal==='topic'||selVal.startsWith('corpora:')||selVal.startsWith('fallback:'))?selVal:'web:mixed';
   s.customTopic=$('#customTopicIn').value.trim().slice(0,40);
   s.seconds=+$('#secSel').value||90;
   s.rounds=clamp(parseInt($('#roundsIn').value,10)||1,1,20);
@@ -1215,11 +1189,10 @@ async function startGame(){
   const s=S.settings;
   const langLabel=(SUPPORTED_LANGS[s.lang]||SUPPORTED_LANGS.en).label;
   const bankLabel=s.bank==='topic'
-    ?('topic "'+(s.customTopic||'mixed')+'"')
+    ?('topic "'+(s.customTopic||'general')+'"')
     :(s.bank==='web:mixed'?'Web: Mixed'
     :(s.bank.startsWith('corpora:')?('Web: '+s.bank.slice('corpora:'.length))
-    :(s.bank.startsWith('wikicat:')?('Web: '+s.bank.split(':').slice(2).join(':'))
-    :(s.bank.startsWith('fallback:')?((FALLBACK_WORD_BANKS[s.bank.slice('fallback:'.length)]||FALLBACK_WORD_BANKS.mixed).label):'Web: Mixed'))));
+    :(s.bank.startsWith('fallback:')?((FALLBACK_WORD_BANKS[s.bank.slice('fallback:'.length)]||FALLBACK_WORD_BANKS.mixed).label):'Web: Mixed')));
   broadcastLobby('Fetching '+bankLabel+' ['+langLabel+'] words...');
   const g=G;
   try{
@@ -1353,10 +1326,10 @@ function renderLobby(notice,busy){
     '<li><span>'+esc(p.name)+(p.id==='host'?'<span class="tagbit">host</span>':'')+(p.id===S.id?'<span class="tagbit">you</span>':'')+'</span></li>').join('');
   $('#langSel').value=s.lang||'en';
   const sel=$('#bankSel');
-  if(s.bank&&(s.bank.startsWith('corpora:')||s.bank.startsWith('wikicat:'))&&!sel.querySelector('option[value="'+s.bank+'"]')){
+  if(s.bank&&s.bank.startsWith('corpora:')&&!sel.querySelector('option[value="'+s.bank+'"]')){
     const opt=document.createElement('option');
     opt.value=s.bank;
-    opt.textContent='Web: '+(s.bank.startsWith('corpora:')?s.bank.slice('corpora:'.length):s.bank.split(':').slice(2).join(':'));
+    opt.textContent='Web: '+s.bank.slice('corpora:'.length);
     sel.insertBefore(opt,sel.querySelector('option[value="topic"]')||null);
   }
   if(s.bank&&s.bank.startsWith('fallback:')){

@@ -182,28 +182,19 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
     </div>
     <div class="card">
       <h3>Game settings</h3>
-      <label class="set tip" data-tip="Looks up words and related terms for your chosen topic or word in the selected language via API.">
-        <span>Word language</span>
-        <select id="langSel">
-          <option value="en">English (en)</option>
-          <option value="es">Spanish (es)</option>
-          <option value="fr">French (fr)</option>
-          <option value="de">German (de)</option>
-          <option value="it">Italian (it)</option>
-          <option value="pt">Portuguese (pt)</option>
-          <option value="he">Hebrew (he)</option>
-          <option value="ru">Russian (ru)</option>
-          <option value="ar">Arabic (ar)</option>
-        </select>
-      </label>
-      <div class="set tip" data-tip="Discovers word categories dynamically from web sources or looks up a custom topic in the selected language via API. Fallback banks only appear if web sources do not return.">
+      <div class="set tip" data-tip="Dynamically loads categories from GitHub Corpora or fetches words for any custom topic from Datamuse, with built-in fallback banks if offline.">
         <span>Word bank</span>
         <div class="set-right">
           <select id="bankSel">
-            <option value="web:mixed">Web: Mixed</option>
-            <option value="topic">Custom Topic (API)</option>
+            <option value="mixed">Mixed (Fallback)</option>
+            <option value="animals">Animals (Fallback)</option>
+            <option value="food">Food & Drinks (Fallback)</option>
+            <option value="objects">Everyday Objects (Fallback)</option>
+            <option value="nature">Nature & Places (Fallback)</option>
+            <option value="pop">Movies & Pop (Fallback)</option>
+            <option value="topic">Custom Topic (Datamuse)</option>
           </select>
-          <input id="customTopicIn" class="hidden" maxlength="40" placeholder="Enter topic or word" autocomplete="off">
+          <input id="customTopicIn" class="hidden" maxlength="40" placeholder="e.g. space, sports" autocomplete="off">
         </div>
       </div>
       <label class="set tip" data-tip="How long each round lasts. The chosen player tries to get as many words written as they can before the timer runs out.">
@@ -280,22 +271,10 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
 (()=>{
 'use strict';
 
-/* ---------------- dynamic web lookup & fallback word banks ---------------- */
+/* ---------------- fallback word banks & dynamic web sources ---------------- */
 const CORPORA_API_BASE='https://api.github.com/repos/dariusk/corpora/contents/data';
 const CORPORA_RAW_BASE='https://raw.githubusercontent.com/dariusk/corpora/master/data/';
 const DATAMUSE_WORDS_URL='https://api.datamuse.com/words';
-
-const SUPPORTED_LANGS={
-  en:{label:'English (en)',datamuseV:'',wiki:'en'},
-  es:{label:'Spanish (es)',datamuseV:'es',wiki:'es'},
-  fr:{label:'French (fr)',datamuseV:'',wiki:'fr'},
-  de:{label:'German (de)',datamuseV:'',wiki:'de'},
-  it:{label:'Italian (it)',datamuseV:'',wiki:'it'},
-  pt:{label:'Portuguese (pt)',datamuseV:'',wiki:'pt'},
-  he:{label:'Hebrew (he)',datamuseV:'',wiki:'he'},
-  ru:{label:'Russian (ru)',datamuseV:'',wiki:'ru'},
-  ar:{label:'Arabic (ar)',datamuseV:'',wiki:'ar'}
-};
 
 const FALLBACK_WORD_BANKS={
   mixed:{
@@ -362,11 +341,73 @@ const FALLBACK_WORD_BANKS={
       'tortilla','tuna','turkey','turnip','vanilla','venison','waffle','walnut','wasabi','watermelon','yogurt',
       'zucchini'
     ]
+  },
+  objects:{
+    label:'Everyday Objects (Fallback)',
+    words:[
+      'alarm clock','anchor','armchair','backpack','ball','balloon','bandage','barrel','basket','battery',
+      'bed','bell','belt','bench','bicycle','binoculars','blanket','blender','book','bookmark','boot',
+      'bottle','bowl','bracelet','brick','briefcase','broom','brush','bucket','buckle','bulb','button',
+      'cabinet','calculator','calendar','camera','candle','canister','canvas','cap','card','carpet','cart',
+      'chain','chair','chalk','charger','clock','coat','coin','comb','compass','computer','container','couch',
+      'cradle','crate','crayon','cup','curtain','cushion','dagger','desk','dice','dish','doorknob','drawer',
+      'drill','drum','envelope','eraser','fan','faucet','feather','fence','file','filter','flag','flashlight',
+      'flask','flute','folder','fork','frame','funnel','furniture','gavel','glasses','globe','glove','glue',
+      'goggles','guitar','hammer','hammock','hanger','harp','hat','headphones','helmet','hook','hose','hourglass',
+      'iron','jacket','jar','jersey','jewelry','jug','jigsaw','kettle','key','keyboard','kite','knife','knob',
+      'ladder','ladle','lamp','lantern','laptop','latch','leash','lens','lever','lighter','lock','locket',
+      'luggage','magnet','magnifying glass','map','marker','mat','match','mattress','medal','megaphone','mirror',
+      'mitten','mop','mouse','mug','nail','napkin','necklace','needle','net','notebook','oar','padlock','pail',
+      'paintbrush','pajamas','pan','paperclip','parachute','parasol','passport','pen','pencil','pendulum',
+      'perfume','phone','photograph','piano','picture','pillow','pin','pipe','pitcher','plaque','plate','pliers',
+      'plug','plunger','pocket','pot','pouch','projector','pulley','purse','puzzle','quilt','racket','radio',
+      'raft','razor','remote','ribbon','ring','robe','rocket','rope','ruler','saddle','safe','sail','sandal',
+      'saw','scale','scarf','scissors','screen','screw','screwdriver','scythe','seal','seat','shampoo','shelf',
+      'shield','shirt','shoe','shovel','shower','sign','sink','skate','skillet','skirt','sled','slipper',
+      'soap','sock','sofa','solar panel','spanner','spatula','speaker','sponge','spoon','spring','stamp',
+      'stapler','statue','stethoscope','sticker','stool','stopwatch','stove','strap','straw','string','suitcase',
+      'sunglasses','sweater','sword','syringe','table','tablet','tag','tape','teapot','telescope','tent',
+      'thermostat','thimble','thread','ticket','tie','tile','timer','tissue','toaster','tongs','toothbrush',
+      'toothpaste','torch','towel','toy','tractor','tray','trolley','trophy','trumpet','trunk','tub','tube',
+      'tuba','umbrella','urn','vacuum','vase','vest','violin','visor','wallet','wand','wardrobe','watch',
+      'watering can','wheel','wheelbarrow','whistle','wig','window','windshield','wineglass','wire','wrench',
+      'xylophone','yarn','yo yo','zipper'
+    ]
+  },
+  nature:{
+    label:'Nature & Places (Fallback)',
+    words:[
+      'archipelago','atoll','avalanche','bay','beach','blizzard','boulder','brook','butte','canal','canyon',
+      'cape','cave','cavern','cliff','cloud','coast','comet','constellation','coral reef','crater','creek',
+      'current','dawn','delta','desert','dew','dune','dusk','earthquake','eclipse','estuary','fjord','flood',
+      'fog','forest','frost','geyser','glacier','gorge','grassland','gulf','harbor','hill','horizon','iceberg',
+      'island','isthmus','jungle','lagoon','lake','landslide','lava','lightning','marsh','meadow','mesa',
+      'meteor','mist','monsoon','moon','moor','mountain','mudflat','nebula','oasis','ocean','peninsula','plain',
+      'plateau','pond','prairie','precipice','rain','rainbow','rainforest','rapids','reef','ridge','river',
+      'sandbar','savanna','sea','seashore','shoal','shore','sinkhole','sky','snow','snowstorm','sound',
+      'spring','star','steppe','storm','strait','stream','sun','sunrise','sunset','swamp','swell','tide',
+      'tundra','twilight','typhoon','valley','volcano','waterfall','watershed','wave','wetland','whirlpool',
+      'wilderness','wind','woods'
+    ]
+  },
+  pop:{
+    label:'Movies & Pop (Fallback)',
+    words:[
+      'alien','amulet','archer','arena','armor','asteroid','atlantis','avatar','wizard','dragon','phoenix',
+      'unicorn','mermaid','vampire','werewolf','zombie','ghost','goblin','ogre','troll','elf','dwarf','knight',
+      'samurai','ninja','pirate','cowboy','detective','spy','villain','hero','sidekick','time travel','portal',
+      'spaceship','lightsaber','wand','broomstick','potion','spell','crown','throne','castle','dungeon',
+      'treasure','map','compass','riddle','prophecy','curse','shield','sword','bow','arrow','cloak','mask',
+      'robot','cyborg','android','clone','hologram','laser','teleporter','dinosaur','kaiju','kraken','gargoyle',
+      'sphinx','minotaur','centaur','griffin','basilisk','hydra','yeti','bigfoot','loch ness','haunted house',
+      'carnival','circus','stage','spotlight','script','director','camera','soundtrack','sequel','plot twist',
+      'arcade','highscore','boss fight','quest','guild','inventory','respawn','cutscene','trophy','podium'
+    ]
   }
 };
 
 const CONFIG={
-  timeoutMs:6500
+  timeoutMs:6000
 };
 
 const BROKERS=[
@@ -379,19 +420,19 @@ const BROKERS=[
 const ALIASES=["Fox","Owl","Newt","Moth","Lynx","Crow","Hare","Wren","Seal","Toad","Mole","Bat","Deer","Mink","Lark","Crab"];
 
 function norm(s){
-  return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f\u0591-\u05C7\u064B-\u065F]/g,'')
-    .replace(/[^\p{L}\p{N}\s]/gu,' ').replace(/\s+/g,' ').trim();
+  return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
 }
 function cleanBank(lists){
-  const seen=new Set(),out=[],skip=['of','the','and','for','with','set','pair','el','la','los','las','de','del','le','les','un','une','des','der','die','das','und','il','lo','gli','le','os','as','do','da','את','של','על'];
+  const seen=new Set(),out=[],skip=['of','the','and','for','with','set','pair'];
   for(const arr of lists){
     if(!Array.isArray(arr))continue;
     for(const raw of arr){
       if(typeof raw!=='string')continue;
       const w=norm(raw);
-      if(!/^[\p{L}]+( [\p{L}]+)?$/u.test(w))continue;
+      if(!/^[a-z]+( [a-z]+)?$/.test(w))continue;
       const toks=w.split(' ');
-      if(w.replace(/ /g,'').length<2||toks.some(t=>t.length<2||skip.includes(t)))continue;
+      if(w.replace(/ /g,'').length<3||toks.some(t=>t.length<2||skip.includes(t)))continue;
       if(seen.has(w))continue;
       seen.add(w);out.push(w);
     }
@@ -433,7 +474,7 @@ function pickRelated(cands,phrase,n){
   for(const c of (cands||[])){
     if(out.length>=n)break;
     const w=norm(c&&c.word);
-    if(!/^[\p{L}]{2,}$/u.test(w))continue;
+    if(!/^[a-z]{3,}$/.test(w))continue;
     if(violates(w,phrase)||out.some(o=>violates(w,o)))continue;
     out.push(w);
   }
@@ -467,12 +508,12 @@ function buildOrder(ids,rounds){
 // </logic>
 
 const $=s=>document.querySelector(s);
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&','<':'<','>':'>','"':'"',"'":"'"}[c]));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&','<':'<','>':'>','"':'"',"'":'"'}[c]));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const show=id=>{document.querySelectorAll('.screen').forEach(e=>e.classList.add('hidden'));$('#'+id).classList.remove('hidden');window.scrollTo(0,0);};
 const fmtClock=ms=>{const s=Math.ceil(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
-const defaults=()=>({lang:'en',bank:'web:mixed',customTopic:'',seconds:90,rounds:3,extra:0,maxSkips:3,limitSkips:true,skipCost:0,max:8,anon:true});
+const defaults=()=>({bank:'mixed',customTopic:'',seconds:90,rounds:3,extra:0,maxSkips:3,limitSkips:true,skipCost:0,max:8,anon:true});
 const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 
 const SANDBOXED=(()=>{try{void window.localStorage;return false;}catch(e){return true;}})();
@@ -481,7 +522,7 @@ const LOCAL_FAIL_MSG='No reply from host in same-browser mode. Make sure both ta
 const NET_FAIL_MSG='No reply from host. Check the 5-letter code and make sure the host has the room open.';
 const log=(...a)=>console.info('[Ellis]',...a);
 
-const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null,seenMids:new Set()};
+const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null,seenMids:new Set(),dynamicFolders:[]};
 let G=null;
 
 function markSeen(mid){
@@ -495,7 +536,7 @@ function markSeen(mid){
   return false;
 }
 
-/* ---------------- dynamic web lookup for the word/topic in question ---------------- */
+/* ---------------- dynamic website categories + fallback word banks ---------------- */
 async function fetchJson(url,ms){
   const ac=new AbortController();const t=setTimeout(()=>ac.abort(),ms);
   try{
@@ -505,10 +546,10 @@ async function fetchJson(url,ms){
   }finally{clearTimeout(t);}
 }
 
-let corporaFoldersPromise=null;
+let foldersPromise=null;
 function discoverCorporaFolders(){
-  if(!corporaFoldersPromise){
-    corporaFoldersPromise=fetchJson(CORPORA_API_BASE,CONFIG.timeoutMs)
+  if(!foldersPromise){
+    foldersPromise=fetchJson(CORPORA_API_BASE,CONFIG.timeoutMs)
       .then(items=>{
         if(!Array.isArray(items))return[];
         return items
@@ -517,24 +558,7 @@ function discoverCorporaFolders(){
       })
       .catch(()=>[]);
   }
-  return corporaFoldersPromise;
-}
-
-function showFallbackOptionsInSelect(includeAllFallbacks){
-  const sel=$('#bankSel');
-  if(!sel)return;
-  const topicOpt=sel.querySelector('option[value="topic"]');
-  const keys=includeAllFallbacks?Object.keys(FALLBACK_WORD_BANKS):['mixed'];
-  for(const k of keys){
-    const spec=FALLBACK_WORD_BANKS[k];
-    if(!spec)continue;
-    const val='fallback:'+k;
-    if(sel.querySelector('option[value="'+val+'"]'))continue;
-    const opt=document.createElement('option');
-    opt.value=val;
-    opt.textContent=spec.label;
-    sel.insertBefore(opt,topicOpt||null);
-  }
+  return foldersPromise;
 }
 
 async function populateDynamicCategoryOptions(){
@@ -542,14 +566,8 @@ async function populateDynamicCategoryOptions(){
   if(!sel||sel.dataset.foldersLoaded)return;
   sel.dataset.foldersLoaded='1';
   const folders=await discoverCorporaFolders();
-  if(!folders.length){
-    showFallbackOptionsInSelect(true);
-    if(S.settings&&S.settings.bank&&S.settings.bank.startsWith('corpora:')){
-      S.settings.bank='web:mixed';
-    }
-    if(S.settings&&S.settings.bank)sel.value=S.settings.bank;
-    return;
-  }
+  if(!folders.length)return;
+  S.dynamicFolders=folders;
   const topicOpt=sel.querySelector('option[value="topic"]');
   for(const folder of folders){
     const val='corpora:'+folder;
@@ -568,19 +586,14 @@ function getFallbackWords(bankKey){
   return cleanBank([FALLBACK_WORD_BANKS.mixed.words]);
 }
 
-async function fetchDatamuseForQuery(paramName,queryVal,lang){
-  const spec=SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en;
-  const q=norm(queryVal);
-  if(!q)return[];
-  const params=new URLSearchParams({[paramName]:q,max:'250'});
-  if(lang==='en')params.set('md','p');
-  if(spec.datamuseV)params.set('v',spec.datamuseV);
-  const data=await fetchJson(DATAMUSE_WORDS_URL+'?'+params.toString(),CONFIG.timeoutMs);
+async function fetchTopicWords(topicStr){
+  const topics=norm(topicStr).split(' ').filter(Boolean).slice(0,5).join(',');
+  if(!topics)return[];
+  const url=DATAMUSE_WORDS_URL+'?topics='+encodeURIComponent(topics)+'&md=p&max=250';
+  const data=await fetchJson(url,CONFIG.timeoutMs);
   if(!Array.isArray(data))return[];
-  const nouns=lang==='en'
-    ?data.filter(d=>d&&Array.isArray(d.tags)&&d.tags.includes('n')).map(d=>d.word)
-    :data.map(d=>d&&d.word);
-  const pool=nouns.length>=20?nouns:data.map(d=>d&&d.word);
+  const nouns=data.filter(d=>d&&Array.isArray(d.tags)&&d.tags.includes('n')).map(d=>d.word);
+  const pool=nouns.length>=25?nouns:data.map(d=>d&&d.word);
   return cleanBank([pool]);
 }
 
@@ -601,100 +614,23 @@ async function fetchCorporaFolderWords(folder){
   return cleanBank(rawArrays);
 }
 
-// Looks up words matching the specific query/word in question on Wiktionary & Wikipedia for the selected language
-async function fetchTargetLangQueryWords(queryText,lang){
-  const spec=SUPPORTED_LANGS[lang]||SUPPORTED_LANGS.en;
-  const cleanQ=norm(queryText);
-  if(!cleanQ)return[];
-  const lists=[];
-
-  if(spec.datamuseV){
-    const dm=await fetchDatamuseForQuery('ml',cleanQ,lang).catch(()=>[]);
-    if(dm.length)lists.push(dm);
-  }
-
-  const wikiCode=spec.wiki;
-  const wiktUrl='https://'+wikiCode+'.wiktionary.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(cleanQ)+'&srnamespace=0&srlimit=100&format=json&origin=*';
-  const wikiUrl='https://'+wikiCode+'.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(cleanQ)+'&srnamespace=0&srlimit=100&format=json&origin=*';
-  const [wiktData,wikiData]=await Promise.all([
-    fetchJson(wiktUrl,CONFIG.timeoutMs).catch(()=>null),
-    fetchJson(wikiUrl,CONFIG.timeoutMs).catch(()=>null)
-  ]);
-
-  const wiktHits=(wiktData&&wiktData.query&&Array.isArray(wiktData.query.search))?wiktData.query.search.map(h=>h&&h.title):[];
-  const wikiHits=(wikiData&&wikiData.query&&Array.isArray(wikiData.query.search))?wikiData.query.search.map(h=>h&&h.title):[];
-  lists.push(wiktHits,wikiHits);
-  return cleanBank(lists);
-}
-
-async function fetchWebMixedWords(lang){
-  if(lang==='en'){
-    const folders=await discoverCorporaFolders();
-    const chosen=shuffle(folders.slice()).slice(0,3);
-    const folderLists=await Promise.all(
-      chosen.map(folder=>fetchCorporaFolderWords(folder).catch(()=>[]))
-    );
-    const topicList=await fetchDatamuseForQuery('topics','objects,animals,food,nature','en').catch(()=>[]);
-    return cleanBank([...folderLists,topicList]);
-  }
-  const seedQueries=['animal','food','nature','object','city'];
-  const perQuery=await Promise.all(
-    seedQueries.map(q=>fetchTargetLangQueryWords(q,lang).catch(()=>[]))
-  );
-  return cleanBank(perQuery);
-}
-
-function getBank(bankKey,customTopic,lang){
-  const activeLang=SUPPORTED_LANGS[lang]?lang:'en';
-  const key=bankKey||'web:mixed';
-  const cacheKey=activeLang+'|'+key+'|'+(key==='topic'?norm(customTopic||''):'');
+function getBank(bankKey,customTopic){
+  const key=bankKey||'mixed';
+  const cacheKey=key==='topic'?('topic:'+norm(customTopic||'')):key;
   if(!bankCache.has(cacheKey)){
     const p=(async()=>{
       if(key==='topic'){
-        const topic=(customTopic||'').trim()||'general';
-        if(activeLang==='en'){
-          const words=await fetchDatamuseForQuery('ml',topic,'en');
-          if(words.length>=12)return words;
-          showFallbackOptionsInSelect(true);
-          return getFallbackWords('mixed');
-        }
-        const words=await fetchTargetLangQueryWords(topic,activeLang);
-        if(words.length>=12)return words;
-        showFallbackOptionsInSelect(true);
-        return getFallbackWords('mixed');
-      }
-      if(key==='web:mixed'){
-        const words=await fetchWebMixedWords(activeLang);
-        if(words.length>=12)return words;
-        showFallbackOptionsInSelect(true);
-        return getFallbackWords('mixed');
+        const words=await fetchTopicWords(customTopic);
+        return words.length>=15?words:getFallbackWords('mixed');
       }
       if(key.startsWith('corpora:')){
         const folder=key.slice('corpora:'.length);
-        const rawWords=await fetchCorporaFolderWords(folder);
-        if(activeLang==='en'){
-          if(rawWords.length>=12)return rawWords;
-          showFallbackOptionsInSelect(true);
-          return getFallbackWords('mixed');
-        }
-        // Look up the category's terms in the selected language via API
-        const sampleTerms=shuffle(rawWords.slice()).slice(0,8);
-        const langLists=await Promise.all(
-          sampleTerms.map(term=>fetchTargetLangQueryWords(term,activeLang).catch(()=>[]))
-        );
-        const translatedWords=cleanBank(langLists);
-        if(translatedWords.length>=12)return translatedWords;
-        showFallbackOptionsInSelect(true);
-        return getFallbackWords('mixed');
+        const words=await fetchCorporaFolderWords(folder);
+        return words.length>=15?words:getFallbackWords('mixed');
       }
-      if(key.startsWith('fallback:')){
-        return getFallbackWords(key.slice('fallback:'.length));
-      }
-      return getFallbackWords('mixed');
-    })().catch(()=>{
-      showFallbackOptionsInSelect(true);
-      return getFallbackWords('mixed');
-    });
+      const fb=getFallbackWords(key);
+      return fb.length?fb:getFallbackWords('mixed');
+    })().catch(()=>getFallbackWords(key.startsWith('corpora:')?'mixed':key));
     bankCache.set(cacheKey,p);
   }
   return bankCache.get(cacheKey);
@@ -706,23 +642,8 @@ async function prepare(g){
   const want=S.settings.extra;
   if(want>0){
     try{
-      const activeLang=S.settings.lang||'en';
-      const spec=SUPPORTED_LANGS[activeLang]||SUPPORTED_LANGS.en;
-      if(activeLang==='en'||spec.datamuseV){
-        const params=new URLSearchParams({ml:word,max:'60'});
-        if(spec.datamuseV)params.set('v',spec.datamuseV);
-        const arr=await fetchJson(DATAMUSE_WORDS_URL+'?'+params.toString(),CONFIG.timeoutMs);
-        blocked=pickRelated(Array.isArray(arr)?arr:[],word,want);
-      }
-      if(blocked.length<want){
-        const wikiRelated=await fetchTargetLangQueryWords(word,activeLang).catch(()=>[]);
-        const extraCands=wikiRelated.map(w=>({word:w}));
-        const more=pickRelated(extraCands,word,want*2);
-        for(const m of more){
-          if(blocked.length>=want)break;
-          if(!blocked.includes(m)&&!violates(m,word))blocked.push(m);
-        }
-      }
+      const arr=await fetchJson(DATAMUSE_WORDS_URL+'?ml='+encodeURIComponent(word)+'&max=60',CONFIG.timeoutMs);
+      blocked=pickRelated(Array.isArray(arr)?arr:[],word,want);
     }catch(e){g.relatedFailed=true;}
   }
   return {word,blocked};
@@ -1057,7 +978,7 @@ function createRoom(){
       setErr('');
       broadcastLobby();
       populateDynamicCategoryOptions().then(()=>broadcastLobby()).catch(()=>{});
-      getBank(S.settings.bank,S.settings.customTopic,S.settings.lang).catch(()=>{});
+      getBank(S.settings.bank,S.settings.customTopic).catch(()=>{});
     },
     onMsg:hostHandle,
     onLeave:hostLeave,
@@ -1163,11 +1084,9 @@ function hostLeave(id){
 function applySettings(){
   if(!S.isHost||!G||G.phase!=='lobby')return;
   const s=S.settings;
-  const prevLang=s.lang, prevBank=s.bank, prevTopic=s.customTopic;
-  const langVal=$('#langSel').value;
-  s.lang=SUPPORTED_LANGS[langVal]?langVal:'en';
+  const prevBank=s.bank, prevTopic=s.customTopic;
   const selVal=$('#bankSel').value;
-  s.bank=(selVal==='web:mixed'||selVal==='topic'||selVal.startsWith('corpora:')||selVal.startsWith('fallback:'))?selVal:'web:mixed';
+  s.bank=(FALLBACK_WORD_BANKS[selVal]||selVal==='topic'||selVal.startsWith('corpora:'))?selVal:'mixed';
   s.customTopic=$('#customTopicIn').value.trim().slice(0,40);
   s.seconds=+$('#secSel').value||90;
   s.rounds=clamp(parseInt($('#roundsIn').value,10)||1,1,20);
@@ -1177,9 +1096,7 @@ function applySettings(){
   s.skipCost=Math.max(0,parseFloat($('#skipCostIn').value)||0);
   s.max=clamp(parseInt($('#maxIn').value,10)||8,Math.max(3,S.players.length),16);
   s.anon=$('#anonChk').checked;
-  if(s.lang!==prevLang||s.bank!==prevBank||s.customTopic!==prevTopic){
-    getBank(s.bank,s.customTopic,s.lang).catch(()=>{});
-  }
+  if(s.bank!==prevBank||s.customTopic!==prevTopic)getBank(s.bank,s.customTopic).catch(()=>{});
   broadcastLobby();
 }
 
@@ -1187,16 +1104,13 @@ async function startGame(){
   if(!G||G.phase!=='lobby'||S.players.length<3)return;
   G.phase='starting';
   const s=S.settings;
-  const langLabel=(SUPPORTED_LANGS[s.lang]||SUPPORTED_LANGS.en).label;
   const bankLabel=s.bank==='topic'
-    ?('topic "'+(s.customTopic||'general')+'"')
-    :(s.bank==='web:mixed'?'Web: Mixed'
-    :(s.bank.startsWith('corpora:')?('Web: '+s.bank.slice('corpora:'.length))
-    :(s.bank.startsWith('fallback:')?((FALLBACK_WORD_BANKS[s.bank.slice('fallback:'.length)]||FALLBACK_WORD_BANKS.mixed).label):'Web: Mixed')));
-  broadcastLobby('Fetching '+bankLabel+' ['+langLabel+'] words...');
+    ?('topic "'+(s.customTopic||'mixed')+'"')
+    :(s.bank.startsWith('corpora:')?s.bank.slice('corpora:'.length):((FALLBACK_WORD_BANKS[s.bank]||FALLBACK_WORD_BANKS.mixed).label));
+  broadcastLobby('Fetching '+bankLabel+' words...');
   const g=G;
   try{
-    g.bank=await getBank(s.bank,s.customTopic,s.lang);
+    g.bank=await getBank(s.bank,s.customTopic);
     g.used=new Set();g.queue=[];g.relatedFailed=false;
     await ensureQueue(1);
   }catch(e){
@@ -1324,7 +1238,6 @@ function renderLobby(notice,busy){
   $('#pCount').textContent='('+S.players.length+'/'+s.max+')';
   $('#plist').innerHTML=S.players.map(p=>
     '<li><span>'+esc(p.name)+(p.id==='host'?'<span class="tagbit">host</span>':'')+(p.id===S.id?'<span class="tagbit">you</span>':'')+'</span></li>').join('');
-  $('#langSel').value=s.lang||'en';
   const sel=$('#bankSel');
   if(s.bank&&s.bank.startsWith('corpora:')&&!sel.querySelector('option[value="'+s.bank+'"]')){
     const opt=document.createElement('option');
@@ -1332,10 +1245,7 @@ function renderLobby(notice,busy){
     opt.textContent='Web: '+s.bank.slice('corpora:'.length);
     sel.insertBefore(opt,sel.querySelector('option[value="topic"]')||null);
   }
-  if(s.bank&&s.bank.startsWith('fallback:')){
-    showFallbackOptionsInSelect(true);
-  }
-  sel.value=s.bank||'web:mixed';
+  sel.value=s.bank||'mixed';
   const isTopic=(s.bank==='topic');
   $('#customTopicIn').classList.toggle('hidden',!isTopic);
   if(document.activeElement!==$('#customTopicIn')){
@@ -1350,7 +1260,7 @@ function renderLobby(notice,busy){
   $('#maxIn').min=Math.max(3,S.players.length);
   $('#maxIn').value=s.max;
   $('#anonChk').checked=!!s.anon;
-  ['langSel','bankSel','customTopicIn','secSel','roundsIn','extraSel','limitSkipsChk','skipCostIn','maxIn','anonChk'].forEach(id=>{$('#'+id).disabled=!S.isHost||!!busy;});
+  ['bankSel','customTopicIn','secSel','roundsIn','extraSel','limitSkipsChk','skipCostIn','maxIn','anonChk'].forEach(id=>{$('#'+id).disabled=!S.isHost||!!busy;});
   $('#maxSkipsIn').disabled=!S.isHost||!!busy||!s.limitSkips;
   $('#btnStart').classList.toggle('hidden',!S.isHost);
   $('#btnStart').disabled=S.players.length<3||!!busy;
@@ -1465,7 +1375,7 @@ $('#btnLeave2').onclick=()=>leaveToMenu();
 $('#btnStart').onclick=startGame;
 $('#btnNext').onclick=nextRound;
 $('#btnAgain').onclick=backToLobby;
-['langSel','secSel','roundsIn','extraSel','maxSkipsIn','skipCostIn','maxIn','anonChk'].forEach(id=>$('#'+id).addEventListener('change',applySettings));
+['secSel','roundsIn','extraSel','maxSkipsIn','skipCostIn','maxIn','anonChk'].forEach(id=>$('#'+id).addEventListener('change',applySettings));
 $('#roomCode').onclick=()=>{
   try{navigator.clipboard.writeText(S.code);$('#copyNote').textContent='Copied.';setTimeout(()=>{$('#copyNote').textContent='Share this 5-letter code. Click it to copy.';},1500);}catch(e){}
 };

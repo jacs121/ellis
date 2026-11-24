@@ -408,7 +408,7 @@ function buildOrder(ids,rounds){
 }
 // </logic>
 
-const $=s=>document.querySelector(s);
+const $=s=>document.querySelector;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&','<':'<','>':'>','"':'"',"'":"'"}[c]));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
@@ -515,7 +515,7 @@ async function fetchJson(url,ms){
 async function fetchDatamuseTopicPool(topicStr){
   const topics=norm(topicStr).split(' ').filter(Boolean).slice(0,5).join(',');
   if(!topics)return[];
-  const url=`${DATAMUSE_WORDS_URL}?topics=${encodeURIComponent(topics)}&md=pf&max=250`;
+  const url=`${DATAMUSE_WORDS_URL}?rel_bgb=${encodeURIComponent(topics)}`;
   const rows=await fetchJson(url,CONFIG.timeoutMs);
   if(!Array.isArray(rows))return[];
   const filtered=rows.filter(r=>{

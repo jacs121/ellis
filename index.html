@@ -276,7 +276,10 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
     <p id="finalWait" class="small center hidden">Waiting for the host...</p>
   </section>
 
-  <div id="how" class="card">
+  <div class="center">
+    <button id="btnHow" type="button" class="link">How to play</button>
+  </div>
+  <div id="how" class="card hidden">
     <h3>How to play</h3>
     <ol>
       <li>One player is secretly chosen each round and sees a word or two.</li>
@@ -442,33 +445,32 @@ const BROKERS=[
 const ALIASES=["Fox","Owl","Newt","Moth","Lynx","Crow","Hare","Wren","Seal","Toad","Mole","Bat","Deer","Mink","Lark","Crab"];
 
 function norm(s){
-  return String(s).toLowerCase()
+  return String(s||'')
+    .toLowerCase()
     .replace(/[\u0591-\u05C7\u064B-\u065F]/g,'')
     .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^\p{L}\p{N}\s]/gu,' ').replace(/\s+/g,' ').trim();
+    .replace(/[^\p{L}\p{N}\s]/gu,' ')
+    .replace(/\s+/g,' ')
+    .trim();
 }
-function isEasyWord(w){
-  if(!w||w.length>14)return false;
-  const toks=w.split(' ');
-  if(toks.length>2)return false;
-  return toks.length===1 ? w.length>=2 && w.length<=11 : toks.every(t=>t.length>=2 && t.length<=8);
-}
+
 function cleanBank(lists){
-  const seen=new Set(),out=[],skip=['of','the','and','for','with','set','pair'];
+  const seen=new Set(),out=[];
   for(const arr of lists){
     if(!Array.isArray(arr))continue;
     for(const raw of arr){
       if(typeof raw!=='string')continue;
       const w=norm(raw);
-      if(!/^[a-z]+( [a-z]+)?$/.test(w)||!isEasyWord(w))continue;
-      const toks=w.split(' ');
-      if(toks.some(t=>skip.includes(t)))continue;
+      if(!w||w.length<2||w.length>24)continue;
+      if(w.split(' ').length>3)continue;
       if(seen.has(w))continue;
-      seen.add(w);out.push(w);
+      seen.add(w);
+      out.push(w);
     }
   }
   return out;
 }
+
 function extractStringsFromJson(val,depth=0){
   if(depth>3||!val)return[];
   if(Array.isArray(val)){
@@ -480,42 +482,45 @@ function extractStringsFromJson(val,depth=0){
   }
   return[];
 }
+
 function violates(text,phrase){
-  const n=norm(text); if(!n)return false;
-  const toks=n.split(' '), compact=toks.join('');
-  const words=norm(phrase).split(' '), joined=words.join('');
-  if(joined.length>=4 && compact.includes(joined))return true;
-  for(const w of words){
-    for(const t of toks){
-      if(t===w)return true;
-      if(w.length>=4 && t.startsWith(w) && t.length<=w.length+3)return true;
-      if(t.length>=4 && w.length>=5 && w.includes(t))return true;
-      if(t.length>=3 && w.length>=5 && w.startsWith(t))return true;
-      if(w.length>=6 && t.length>=4 && t.startsWith(w.slice(0,w.length-2)))return true;
-    }
-  }
-  return false;
+  const n=norm(text);
+  const p=norm(phrase);
+  if(!n||!p)return false;
+  if((' '+n+' ').includes(' '+p+' '))return true;
+  const pCompact=p.replace(/\s+/g,'');
+  const nCompact=n.replace(/\s+/g,'');
+  if(pCompact.length>=3&&nCompact.includes(pCompact))return true;
+  const toks=n.split(' ');
+  const pToks=p.split(' ');
+  return pToks.some(pt=>pt.length>=3&&toks.includes(pt));
 }
+
 function violatesAny(text,phrase,extra){
   return violates(text,phrase)||(extra||[]).some(e=>violates(text,e));
 }
+
 function pickRelated(cands,phrase,n){
   const out=[];
   for(const c of (cands||[])){
     if(out.length>=n)break;
     const w=norm(c&&c.word);
-    if(!/^[a-z]+$/.test(w)||!isEasyWord(w))continue;
+    if(!w||w.length<2||w.length>20)continue;
     if(violates(w,phrase)||out.some(o=>violates(w,o)))continue;
     out.push(w);
   }
   return out;
 }
+
 function isGuess(text,phrase){
-  const n=norm(text), p=norm(phrase);
-  if(!n || !p || n.split(' ').length>6)return false;
+  const n=norm(text);
+  const p=norm(phrase);
+  if(!n||!p)return false;
+  if(n===p||n===p+'s'||n.replace(/\s+/g,'')===p.replace(/\s+/g,''))return true;
   const pad=' '+n+' ';
-  return pad.includes(' '+p+' ') || pad.includes(' '+p+'s ') || n.replace(/ /g,'')===p.replace(/ /g,'');
+  return pad.includes(' '+p+' ')||pad.includes(' '+p+'s ');
 }
+
 function pickWord(bank,used){
   for(let k=0;k<80;k++){
     const w=bank[Math.floor(Math.random()*bank.length)];
@@ -1518,6 +1523,7 @@ $('#btnCreate').onclick=createRoom;
 $('#btnJoin').onclick=joinRoom;
 $('#codeIn').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
 $('#nameIn').addEventListener('keydown',e=>{if(e.key==='Enter')createRoom();});
+$('#btnHow').onclick=()=>$('#how').classList.toggle('hidden');
 $('#btnLeave').onclick=()=>leaveToMenu();
 $('#btnLeave2').onclick=()=>leaveToMenu();
 $('#btnStart').onclick=startGame;

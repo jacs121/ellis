@@ -193,14 +193,14 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
           <option value="ru">Russian (Русский)</option>
         </select>
       </label>
-      <div class="set tip" data-tip="Loads everyday categories from GitHub Corpora or fetches words for any custom topic from Datamuse, filtered by online word frequency with built-in fallback banks if offline.">
+      <div class="set tip" data-tip="Fetches words from raw Corpora JSON files or Datamuse topics, filtered by online word frequency with built-in fallback banks if offline.">
         <span>Word bank</span>
         <div class="set-right">
           <select id="bankSel">
             <option value="mixed">Mixed (Fallback)</option>
-            <option value="animals">Animals (Fallback)</option>
-            <option value="food">Food & Drinks (Fallback)</option>
-            <option value="objects">Everyday Objects (Fallback)</option>
+            <option value="animals">Animals (Corpora + Fallback)</option>
+            <option value="food">Food & Drinks (Corpora + Fallback)</option>
+            <option value="objects">Everyday Objects (Corpora + Fallback)</option>
             <option value="nature">Nature & Places (Fallback)</option>
             <option value="pop">Movies & Pop (Fallback)</option>
             <option value="topic">Custom Topic (Datamuse)</option>
@@ -296,9 +296,13 @@ ul#plist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:co
 (()=>{
 'use strict';
 
-/* ---------------- fallback word banks & dynamic web sources ---------------- */
-const CORPORA_API_BASE='https://api.github.com/repos/dariusk/corpora/contents/data';
+/* ---------------- fallback word banks & rate-limit-free web sources ---------------- */
 const CORPORA_RAW_BASE='https://raw.githubusercontent.com/dariusk/corpora/master/data/';
+const CORPORA_RAW_PATHS={
+  animals:['animals/common.json','animals/birds_antarctica.json','animals/dinosaurs.json'],
+  food:['foods/fruits.json','foods/vegetables.json','foods/condiments.json','foods/herbs_spices.json'],
+  objects:['objects/objects.json','objects/clothing.json','technology/appliances.json']
+};
 const DATAMUSE_WORDS_URL='https://api.datamuse.com/words';
 const MIN_WORD_FREQ=1.5; // occurrences per million words (Datamuse f: tag)
 
@@ -323,7 +327,7 @@ const FALLBACK_WORD_BANKS={
     ]
   },
   animals:{
-    label:'Animals (Fallback)',
+    label:'Animals (Corpora + Fallback)',
     words:[
       'albatross','alligator','alpaca','antelope','armadillo','badger','barracuda','bat','beaver','beetle',
       'beluga','bison','bloodhound','bobcat','buffalo','butterfly','camel','capybara','cardinal','caribou',
@@ -347,7 +351,7 @@ const FALLBACK_WORD_BANKS={
     ]
   },
   food:{
-    label:'Food & Drinks (Fallback)',
+    label:'Food & Drinks (Corpora + Fallback)',
     words:[
       'almonds','apple','apricot','artichoke','asparagus','avocado','bacon','bagel','baguette','banana',
       'barbecue','biscuit','blackberry','blueberry','bread','broccoli','brownie','burrito','butter','cabbage',
@@ -369,7 +373,7 @@ const FALLBACK_WORD_BANKS={
     ]
   },
   objects:{
-    label:'Everyday Objects (Fallback)',
+    label:'Everyday Objects (Corpora + Fallback)',
     words:[
       'alarm clock','anchor','armchair','backpack','ball','balloon','bandage','barrel','basket','battery',
       'bed','bell','belt','bench','bicycle','binoculars','blanket','blender','book','bookmark','boot',
@@ -563,7 +567,7 @@ const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 const SANDBOXED=(()=>{try{void window.localStorage;return false;}catch(e){return true;}})();
 const log=(...a)=>console.info('[Ellis]',...a);
 
-const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null,seenMids:new Set(),dynamicFolders:[]};
+const S={id:null,isHost:false,code:'',local:false,players:[],settings:defaults(),net:null,R:null,tick:null,welcomed:false,joinTimer:null,seenMids:new Set()};
 let G=null;
 
 function markSeen(mid){
@@ -695,40 +699,6 @@ async function filterCommonWords(candidates,minFreq=MIN_WORD_FREQ){
   return withKnownFreq.sort((a,b)=>b.freq-a.freq).slice(0,Math.min(40,withKnownFreq.length)).map(x=>x.word);
 }
 
-let foldersPromise=null;
-function discoverCorporaFolders(){
-  if(!foldersPromise){
-    foldersPromise=fetchJson(CORPORA_API_BASE,CONFIG.timeoutMs)
-      .then(items=>{
-        if(!Array.isArray(items))return[];
-        return items
-          .filter(it=>it&&it.type==='dir'&&typeof it.name==='string'&&/^[a-z0-9_-]+$/i.test(it.name))
-          .map(it=>it.name);
-      })
-      .catch(()=>[]);
-  }
-  return foldersPromise;
-}
-
-async function populateDynamicCategoryOptions(){
-  const sel=$('#bankSel');
-  if(!sel||sel.dataset.foldersLoaded)return;
-  sel.dataset.foldersLoaded='1';
-  const folders=await discoverCorporaFolders();
-  if(!folders.length)return;
-  S.dynamicFolders=folders;
-  const topicOpt=sel.querySelector('option[value="topic"]');
-  for(const folder of folders){
-    const val='corpora:'+folder;
-    if(sel.querySelector('option[value="'+val+'"]'))continue;
-    const opt=document.createElement('option');
-    opt.value=val;
-    opt.textContent='Web: '+folder.replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-    sel.insertBefore(opt,topicOpt||null);
-  }
-  if(S.settings&&S.settings.bank)sel.value=S.settings.bank;
-}
-
 const bankCache=new Map();
 function getFallbackWords(bankKey){
   if(FALLBACK_WORD_BANKS[bankKey])return cleanBank([FALLBACK_WORD_BANKS[bankKey].words]);
@@ -751,16 +721,12 @@ async function fetchTopicWords(topicStr){
   return filterCommonWords(pool);
 }
 
-async function fetchCorporaFolderWords(folder){
-  const entries=await fetchJson(CORPORA_API_BASE+'/'+encodeURIComponent(folder),CONFIG.timeoutMs);
-  if(!Array.isArray(entries))return[];
-  const jsonFiles=entries
-    .filter(f=>f&&f.type==='file'&&typeof f.name==='string'&&f.name.endsWith('.json'))
-    .slice(0,4);
-  if(!jsonFiles.length)return[];
+async function fetchCorporaRawWords(bankKey){
+  const relPaths=CORPORA_RAW_PATHS[bankKey];
+  if(!Array.isArray(relPaths)||!relPaths.length)return[];
   const rawArrays=await Promise.all(
-    jsonFiles.map(f=>
-      fetchJson(CORPORA_RAW_BASE+encodeURIComponent(folder)+'/'+encodeURIComponent(f.name),CONFIG.timeoutMs)
+    relPaths.map(rel=>
+      fetchJson(CORPORA_RAW_BASE+rel,CONFIG.timeoutMs)
         .then(j=>extractStringsFromJson(j))
         .catch(()=>[])
     )
@@ -777,14 +743,17 @@ function getBank(bankKey,customTopic){
         const words=await fetchTopicWords(customTopic);
         return words.length>=15?words:getFallbackWords('mixed');
       }
-      if(key.startsWith('corpora:')){
-        const folder=key.slice('corpora:'.length);
-        const words=await fetchCorporaFolderWords(folder);
-        return words.length>=15?words:getFallbackWords('mixed');
+      if(CORPORA_RAW_PATHS[key]){
+        const [remote,fb]=await Promise.all([
+          fetchCorporaRawWords(key).catch(()=>[]),
+          Promise.resolve(getFallbackWords(key))
+        ]);
+        const merged=cleanBank([remote,fb]);
+        return merged.length>=15?merged:fb;
       }
       const fb=getFallbackWords(key);
       return fb.length?fb:getFallbackWords('mixed');
-    })().catch(()=>getFallbackWords(key.startsWith('corpora:')?'mixed':key));
+    })().catch(()=>getFallbackWords(key));
     bankCache.set(cacheKey,p);
   }
   return bankCache.get(cacheKey);
@@ -1153,7 +1122,6 @@ function createRoom(){
     onReady:()=>{
       setErr('');
       broadcastLobby();
-      populateDynamicCategoryOptions().then(()=>broadcastLobby()).catch(()=>{});
       getBank(S.settings.bank,S.settings.customTopic).catch(()=>{});
     },
     onMsg:hostHandle,
@@ -1266,7 +1234,7 @@ function applySettings(){
   s.lang=$('#langSel').value||'en';
   try{localStorage.setItem('ellis-lang',s.lang);}catch(e){}
   const selVal=$('#bankSel').value;
-  s.bank=(FALLBACK_WORD_BANKS[selVal]||selVal==='topic'||selVal.startsWith('corpora:'))?selVal:'mixed';
+  s.bank=(FALLBACK_WORD_BANKS[selVal]||selVal==='topic')?selVal:'mixed';
   s.customTopic=$('#customTopicIn').value.trim().slice(0,40);
   s.seconds=+$('#secSel').value||90;
   s.rounds=clamp(parseInt($('#roundsIn').value,10)||1,1,20);
@@ -1288,7 +1256,7 @@ async function startGame(){
   const s=S.settings;
   const bankLabel=s.bank==='topic'
     ?(s.customTopic||'mixed')
-    :(s.bank.startsWith('corpora:')?s.bank.slice('corpora:'.length):((FALLBACK_WORD_BANKS[s.bank]||FALLBACK_WORD_BANKS.mixed).label));
+    :((FALLBACK_WORD_BANKS[s.bank]||FALLBACK_WORD_BANKS.mixed).label);
   broadcastLobby(`Fetching ${bankLabel} words...`);
   const g=G;
   try{
@@ -1444,14 +1412,7 @@ function renderLobby(notice,busy){
   $('#plist').innerHTML=S.players.map(p=>
     '<li><span>'+esc(p.name)+(p.id==='host'?'<span class="tagbit">host</span>':'')+(p.id===S.id?'<span class="tagbit">you</span>':'')+'</span></li>').join('');
   $('#langSel').value=s.lang||'en';
-  const sel=$('#bankSel');
-  if(s.bank&&s.bank.startsWith('corpora:')&&!sel.querySelector('option[value="'+s.bank+'"]')){
-    const opt=document.createElement('option');
-    opt.value=s.bank;
-    opt.textContent='Web: '+s.bank.slice('corpora:'.length);
-    sel.insertBefore(opt,sel.querySelector('option[value="topic"]')||null);
-  }
-  sel.value=s.bank||'mixed';
+  $('#bankSel').value=FALLBACK_WORD_BANKS[s.bank]||s.bank==='topic'?s.bank:'mixed';
   const isTopic=(s.bank==='topic');
   $('#customTopicIn').classList.toggle('hidden',!isTopic);
   if(document.activeElement!==$('#customTopicIn')){
